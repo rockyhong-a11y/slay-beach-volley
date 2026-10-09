@@ -492,16 +492,38 @@ expect(stoppedPosition).not.toBe(initialPosition);
 await page.clock.runFor(1000);
 expect(await page.locator('#you-indicator').evaluate(element => element.style.transform)).toBe(stoppedPosition);
 console.log('Direction input moves the player; releasing it leaves the player in place, even with a legacy assistance preference.');
+// Points can finish during the movement check. Charge only in an active rally,
+// then freeze game time during the real native long-press gesture interval.
+await page.clock.pauseAt(await page.evaluate(() => Date.now() + 50));
+let observedBetweenRallies = await page.locator('body').getAttribute('data-phase') !== 'rally', freshRally = false;
+for (let ticks = 0; ticks < 600 && !freshRally; ticks++) {
+  await page.clock.runFor(100);
+  const phase = await page.locator('body').getAttribute('data-phase');
+  if (phase !== 'rally') observedBetweenRallies = true;
+  else if (observedBetweenRallies) freshRally = true;
+}
+expect(freshRally, 'native touch hold starts in a newly observed active rally').toBe(true);
+await expect(page.locator('body')).toHaveAttribute('data-phase', 'rally');
 const spikeRect = await page.locator('#spike-button').boundingBox();
-await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: spikeRect.x + spikeRect.width / 2, y: spikeRect.y + spikeRect.height / 2, id: 1 }] });
-// Hold in wall-clock time too, so native long-press gesture timers can fire.
-await new Promise(resolve => setTimeout(resolve, 800));
-await expect(page.locator('#power-meter')).toBeVisible();
-expect(await page.evaluate(() => getSelection().toString())).toBe('');
-expect(await page.locator('dialog[open]').count()).toBe(0);
-await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-await page.clock.runFor(120);
-await expect(page.locator('#power-meter')).not.toBeVisible();
+let spikeTouchHeld = false;
+try {
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: spikeRect.x + spikeRect.width / 2, y: spikeRect.y + spikeRect.height / 2, id: 1 }] });
+  spikeTouchHeld = true;
+  await page.clock.runFor(120); // Paint the meter through the game's 90ms HUD throttle.
+  await expect(page.locator('#power-meter')).toBeVisible();
+  // Browser gesture timers still use wall time while game physics stays frozen.
+  await new Promise(resolve => setTimeout(resolve, 800));
+  await expect(page.locator('#power-meter')).toBeVisible();
+  expect(await page.evaluate(() => getSelection().toString())).toBe('');
+  expect(await page.locator('dialog[open]').count()).toBe(0);
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  spikeTouchHeld = false;
+  await page.clock.runFor(120);
+  await expect(page.locator('#power-meter')).not.toBeVisible();
+} finally {
+  if (spikeTouchHeld) await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.clock.resume();
+}
 console.log('An 800 ms touch hold charges and releases the spike without a selection menu or popup.');
 await page.locator('#block-button').click();
 await page.waitForTimeout(150);
