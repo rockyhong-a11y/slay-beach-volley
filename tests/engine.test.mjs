@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { createMatch, step, requestBlock, releaseSpike, beginCharge, predictLanding, drainEvents, playerCue, WORLD } from '../src/engine.js';
+import { createMatch, step, requestBlock, releaseSpike, beginCharge, predictLanding, drainEvents, playerCue, WORLD, HAND_HEIGHT } from '../src/engine.js';
 import { ROSTER } from '../src/roster.js';
 
 const frame = 1 / 120;
@@ -10,7 +10,7 @@ function rallyState() {
   const state = createMatch({ seed: 42 });
   state.phase = 'rally'; state.handler = 0; state.possession = 0; state.lastActor = 1; state.touches = 2;
   Object.assign(state.actors[0], { x: 400, y: 790, z: 135, vz: 0 });
-  Object.assign(state.ball, { x: 400, y: 790, z: 340, vx: 0, vy: 0, vz: -100 });
+  Object.assign(state.ball, { x: 400, y: 790, z: 465, vx: 0, vy: 0, vz: -100 });
   return state;
 }
 function run(state, limit = 360, active = false) {
@@ -19,7 +19,7 @@ function run(state, limit = 360, active = false) {
     const input = { x: 0, y: 0 };
     // Active fixtures supply direction input, just as a player uses the stick.
     if (active && state.phase === 'rally' && state.possession === 0) {
-      const target = predictLanding(state.ball, state.touches >= 1 ? 300 : 145);
+      const target = predictLanding(state.ball, state.touches >= 1 ? WORLD.netHeight + 80 : HAND_HEIGHT.toss);
       const dx = Math.max(95, Math.min(905, target.x)) - state.actors[0].x;
       const dy = Math.max(675, Math.min(1120, target.y)) - state.actors[0].y;
       const length = Math.hypot(dx, dy);
@@ -28,7 +28,7 @@ function run(state, limit = 360, active = false) {
     if (active && state.phase === 'rally' && state.possession === 0 && state.touches >= 1 && state.handler === 0) {
       const player = state.actors[0];
       if (playerCue(state) === 'approach' && !state.charging) beginCharge(state);
-      if (playerCue(state) === 'spike' && Math.abs(state.ball.z - player.z - 205) < 75 && state.ball.vz < 0) releaseSpike(state);
+      if (playerCue(state) === 'spike' && Math.abs(state.ball.z - player.z - HAND_HEIGHT.attack) < 75 && state.ball.vz < 0) releaseSpike(state);
     }
     step(state, frame, input); events.push(...drainEvents(state));
     assert.ok(Number.isFinite(state.ball.x) && Number.isFinite(state.ball.y) && Number.isFinite(state.ball.z));
@@ -72,9 +72,83 @@ test('a grounded swing is a safe return rather than a counted spike', () => {
   assert.equal(state.stats.spikes, 0); assert.equal(drainEvents(state).find(event => event.manual)?.kind, 'return');
 });
 test('the dedicated block input can stop an incoming attack without spike input', () => {
-  const state = rallyState(); state.actors[0].y = 690; state.ball.y = 675; state.lastActor = 2; state.touches = 0;
+  const state = rallyState(); Object.assign(state.actors[0], { y: 650, z: 175 }); Object.assign(state.ball, { y: 645, z: 505 }); state.lastActor = 2; state.touches = 0;
   requestBlock(state); step(state, frame);
   assert.equal(state.stats.blocks, 1); assert.equal(state.stats.spikes, 0); assert.equal(drainEvents(state).find(event => event.manual)?.kind, 'block');
+});
+test('the doubled tape catches a ball that would have cleared the old net', () => {
+  assert.equal(WORLD.netHeight, 230 * 2);
+  const state = rallyState(); state.lastActor = 2;
+  Object.assign(state.ball, { x: 500, y: 595, z: 350, vy: 1800, vz: 0 });
+  step(state, frame);
+  assert.equal(state.lastPoint?.reason, 'net'); assert.deepEqual(state.score, [1, 0]);
+});
+test('a block fails outside the narrow lateral lane, even for the block specialist', () => {
+  for (const id of ['nova', 'valkyrie']) {
+    for (const offset of [-80, 80]) {
+      const state = rallyState(); state.touches = 0; state.lastActor = 2;
+      Object.assign(state.actors[0], { id, x: 400 + offset, y: 650, z: 175 });
+      Object.assign(state.ball, { x: 400, y: 645, z: 505 });
+      requestBlock(state); step(state, frame);
+      assert.equal(state.stats.blocks, 0, `${id}: a laterally misplaced block must miss`);
+      assert.equal(drainEvents(state).filter(event => event.type === 'hit' && event.actor === 0).length, 0);
+    }
+  }
+});
+test('a block fails away from the net or beneath its new tape', () => {
+  for (const fixture of [{ y: 710, z: 175, ballZ: 505 }, { y: 650, z: 35, ballZ: 365 }]) {
+    const state = rallyState(); state.touches = 0; state.lastActor = 2;
+    Object.assign(state.actors[0], { y: fixture.y, z: fixture.z });
+    Object.assign(state.ball, { y: 645, z: fixture.ballZ });
+    requestBlock(state); step(state, frame);
+    assert.equal(state.stats.blocks, 0); assert.equal(drainEvents(state).filter(event => event.type === 'hit' && event.actor === 0).length, 0);
+  }
+});
+test('blocking is a timed hand contact, not a tall defensive wall', () => {
+  const state = rallyState(); state.touches = 0; state.lastActor = 2;
+  Object.assign(state.actors[0], { y: 650, z: 175 });
+  Object.assign(state.ball, { y: 645, z: 610 });
+  requestBlock(state); step(state, frame);
+  assert.equal(state.stats.blocks, 0, 'ball is above the raised hands');
+  assert.equal(drainEvents(state).filter(event => event.type === 'hit' && event.actor === 0).length, 0);
+});
+test('both teams serve over the doubled tape along an ordinary ballistic arc', () => {
+  for (const serving of [0, 1]) {
+    const state = createMatch({ seed: 42 }); state.phase = 'serve'; state.phaseTimer = 0; state.serving = serving;
+    state.actors.forEach(actor => { actor.cooldown = 10; });
+    step(state, frame); drainEvents(state);
+    assert.equal(state.ball.z, HAND_HEIGHT.attack, 'overhead serve starts at the authored hand height');
+    let crossed = false;
+    for (let i = 0; i < 360 && state.phase === 'rally'; i++) {
+      const before = state.ball.y;
+      step(state, frame);
+      if ((before - WORLD.net) * (state.ball.y - WORLD.net) <= 0) {
+        assert.ok(state.ball.z >= WORLD.netHeight + 20, `team ${serving} serve must clear the raised tape`); crossed = true; break;
+      }
+      assert.equal(drainEvents(state).some(event => event.type === 'net'), false);
+    }
+    assert.equal(crossed, true);
+  }
+});
+test('all ten airborne attacks can clear the doubled tape without changing gravity in flight', () => {
+  for (const character of ROSTER) {
+    const state = rallyState(); state.actors[0].id = character.id;
+    Object.assign(state.actors[0], { z: 215, vz: 0 }); Object.assign(state.ball, { z: 545 });
+    state.actors.slice(1).forEach(actor => { actor.cooldown = 10; });
+    releaseSpike(state); step(state, frame);
+    assert.equal(drainEvents(state).find(event => event.type === 'hit')?.kind, 'spike');
+    let crossed = false;
+    for (let i = 0; i < 360 && state.phase === 'rally'; i++) {
+      const before = state.ball.y;
+      step(state, frame);
+      assert.equal(state.ball.gravity, WORLD.gravity);
+      if (before >= WORLD.net && state.ball.y < WORLD.net) {
+        assert.ok(state.ball.z >= WORLD.netHeight + 20, `${character.id} attack must clear the raised tape`); crossed = true; break;
+      }
+      assert.equal(drainEvents(state).some(event => event.type === 'net'), false);
+    }
+    assert.equal(crossed, true, character.id);
+  }
 });
 test('a low ball crossing the net awards the point to the other team once', () => {
   const state = rallyState(); state.lastActor = 2; Object.assign(state.ball, { x: 500, y: 595, z: 100, vy: 1800 });
@@ -111,6 +185,22 @@ test('releasing movement keeps the player in place after the old assistance dela
   assert.ok(x > 400 && y < 790, 'a held direction must move the player');
   run(state, 1.2);
   assert.equal(state.actors[0].x, x); assert.equal(state.actors[0].y, y);
+});
+test('four-way facing follows actual movement and stays put when the stick is released', () => {
+  const state = rallyState(); state.possession = 1; state.handler = 2;
+  Object.assign(state.ball, { x: 750, y: 250, z: 3000, vz: 0 });
+  const actor = state.actors[0];
+  for (const [input, facing] of [[{ x: 0, y: -1 }, 'up'], [{ x: 0, y: 1 }, 'down'], [{ x: -1, y: 0 }, 'left'], [{ x: 1, y: 0 }, 'right']]) {
+    step(state, frame, input); assert.equal(actor.facing, facing); assert.equal(actor.motionX, input.x); assert.equal(actor.motionY, input.y);
+    step(state, frame); assert.equal(actor.facing, facing); assert.equal(actor.motionX, 0); assert.equal(actor.motionY, 0);
+  }
+});
+test('contact and landing timestamps give animation its real action boundaries', () => {
+  const state = rallyState(); releaseSpike(state); step(state, frame);
+  const actor = state.actors[0];
+  assert.equal(actor.contactKind, 'spike'); assert.equal(actor.action, 'spike'); assert.equal(actor.contactAt, state.time); assert.equal(actor.actionAt, state.time);
+  run(state, 1.5);
+  assert.equal(actor.action, 'land'); assert.ok(actor.landAt > actor.contactAt); assert.equal(actor.actionAt, actor.landAt);
 });
 test('seeded quick matches finish with a valid 7-point winner at every difficulty', () => {
   for (const difficulty of [0, 1, 2]) {
@@ -182,8 +272,8 @@ test('every original character gets at least half a second to choose a manual sp
 
 test('the block button jumps from the ground and blocks independently of spike', () => {
   const state = rallyState(); state.touches = 0; state.lastActor = 2;
-  Object.assign(state.actors[0], { y: 690, z: 0, vz: 0 });
-  Object.assign(state.ball, { y: 640, z: 365, vz: -100, vy: 140 });
+  Object.assign(state.actors[0], { y: 650, z: 0, vz: 0 });
+  Object.assign(state.ball, { y: 620, z: 600, vz: -100, vy: 100 });
   requestBlock(state); const events = run(state, .6);
   assert.ok(events.some(event => event.type === 'jump' && event.kind === 'block' && event.actor === 0));
   assert.ok(events.some(event => event.type === 'hit' && event.kind === 'block' && event.manual));

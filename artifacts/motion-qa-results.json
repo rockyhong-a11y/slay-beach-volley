@@ -1,0 +1,551 @@
+{
+  "method": "Real generated images and CharacterAnimator.draw, calibrated projectCourtPoint, 60 sequential movement poses, preparation/contact/recovery action snapshots",
+  "characters": [
+    {
+      "id": "nova",
+      "image": [
+        1024,
+        1536
+      ],
+      "generatedDirectionalKit": true,
+      "facingFrames": {
+        "down": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "up": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "left": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "right": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        }
+      },
+      "actions": {
+        "toss": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "spike": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "block": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        }
+      }
+    },
+    {
+      "id": "raven",
+      "image": [
+        1024,
+        1536
+      ],
+      "generatedDirectionalKit": true,
+      "facingFrames": {
+        "down": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "up": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "left": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "right": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        }
+      },
+      "actions": {
+        "toss": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "spike": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "block": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        }
+      }
+    },
+    {
+      "id": "valkyrie",
+      "image": [
+        1024,
+        1536
+      ],
+      "generatedDirectionalKit": true,
+      "facingFrames": {
+        "down": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "up": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "left": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "right": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        }
+      },
+      "actions": {
+        "toss": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "spike": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "block": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        }
+      }
+    },
+    {
+      "id": "viper",
+      "image": [
+        1024,
+        1536
+      ],
+      "generatedDirectionalKit": true,
+      "facingFrames": {
+        "down": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "up": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "left": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "right": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        }
+      },
+      "actions": {
+        "toss": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "spike": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "block": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        }
+      }
+    },
+    {
+      "id": "ember",
+      "image": [
+        1024,
+        1536
+      ],
+      "generatedDirectionalKit": true,
+      "facingFrames": {
+        "down": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "up": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "left": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "right": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        }
+      },
+      "actions": {
+        "toss": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "spike": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "block": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        }
+      }
+    },
+    {
+      "id": "atlas",
+      "image": [
+        1024,
+        1536
+      ],
+      "generatedDirectionalKit": true,
+      "facingFrames": {
+        "down": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "up": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "left": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "right": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        }
+      },
+      "actions": {
+        "toss": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "spike": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "block": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        }
+      }
+    },
+    {
+      "id": "seraph",
+      "image": [
+        1024,
+        1536
+      ],
+      "generatedDirectionalKit": true,
+      "facingFrames": {
+        "down": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "up": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "left": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "right": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        }
+      },
+      "actions": {
+        "toss": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "spike": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "block": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        }
+      }
+    },
+    {
+      "id": "lynx",
+      "image": [
+        1024,
+        1536
+      ],
+      "generatedDirectionalKit": true,
+      "facingFrames": {
+        "down": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "up": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "left": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "right": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        }
+      },
+      "actions": {
+        "toss": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "spike": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "block": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        }
+      }
+    },
+    {
+      "id": "tempest",
+      "image": [
+        1024,
+        1536
+      ],
+      "generatedDirectionalKit": true,
+      "facingFrames": {
+        "down": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "up": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "left": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "right": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        }
+      },
+      "actions": {
+        "toss": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "spike": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "block": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        }
+      }
+    },
+    {
+      "id": "onyx",
+      "image": [
+        1024,
+        1536
+      ],
+      "generatedDirectionalKit": true,
+      "facingFrames": {
+        "down": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "up": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "left": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        },
+        "right": {
+          "frames": 60,
+          "distinctCanvasFrames": 60,
+          "maxJointStep": 13.718177026549267,
+          "articulatedPartsDrawn": 11
+        }
+      },
+      "actions": {
+        "toss": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "spike": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        },
+        "block": {
+          "frames": 60,
+          "distinctCanvasFrames": 57,
+          "distinctJointPoses": 60
+        }
+      }
+    }
+  ],
+  "runtime": [
+    {
+      "key": "ArrowRight",
+      "facing": "right",
+      "frames": 60,
+      "distinctPlayerFrames": 60,
+      "meanFrameMs": 16.664406779661014,
+      "renderedFacing": "right"
+    },
+    {
+      "key": "ArrowLeft",
+      "facing": "left",
+      "frames": 60,
+      "distinctPlayerFrames": 60,
+      "meanFrameMs": 16.667796610169486,
+      "renderedFacing": "left"
+    },
+    {
+      "key": "ArrowUp",
+      "facing": "up",
+      "frames": 60,
+      "distinctPlayerFrames": 60,
+      "meanFrameMs": 16.66610169491524,
+      "renderedFacing": "up"
+    },
+    {
+      "key": "ArrowDown",
+      "facing": "down",
+      "frames": 60,
+      "distinctPlayerFrames": 53,
+      "meanFrameMs": 16.66610169491524,
+      "renderedFacing": "down"
+    }
+  ],
+  "errors": [],
+  "responses": []
+}

@@ -1,6 +1,6 @@
-const VERSION = 'slay-beach-volley-v5';
+const VERSION = 'slay-beach-volley-v6';
 const ASSETS = [];
-const SHELL = ['./', './index.html', './style.css', './src/app.js', './src/roster.js', './src/engine.js', './src/render.js', './src/audio.js', './src/court-scene.js', './src/impact-effects.js', './src/sprites.json', './favicon.svg', './manifest.webmanifest'];
+const SHELL = ['./', './index.html', './style.css', './src/app.js', './src/roster.js', './src/engine.js', './src/render.js', './src/audio.js', './src/court-scene.js', './src/impact-effects.js', './src/character-motion.js', './src/sprites.json', './assets/motions/manifest.json', './favicon.svg', './manifest.webmanifest'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(VERSION)
     .then(cache => cache.addAll([...SHELL, ...ASSETS].map(url => new Request(url, { cache: 'reload' }))))
@@ -11,7 +11,7 @@ self.addEventListener('activate', event => {
     const oldCaches = (await caches.keys()).filter(key => key.startsWith('slay-beach-volley-') && key !== VERSION);
     await Promise.all(oldCaches.map(key => caches.delete(key)));
     await self.clients.claim();
-    // Legacy workers ignore query strings and may have served v4 for a v5 link.
+    // Legacy workers may have served old app code for an explicit upgrade link.
     // Only that explicitly requested upgrade reloads; other matches continue.
     if (oldCaches.length) {
       const clients = await self.clients.matchAll({ type: 'window' });

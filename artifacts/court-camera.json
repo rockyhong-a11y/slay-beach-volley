@@ -1,5 +1,5 @@
 {
-  "id": "slay-stadium-v1",
+  "id": "slay-stadium-v2",
   "width": 960,
   "height": 1440,
   "projection": [
@@ -23,7 +23,8 @@
     ]
   ],
   "referenceDepth": 29.726454600691795,
-  "netHeight": 230,
+  "netHeight": 460,
+  "netHeightMeters": 4.86,
   "corners": [
     [
       255.9011,
@@ -44,12 +45,12 @@
   ],
   "netTop": [
     [
-      197.6991,
-      643.2057
+      178.6697,
+      512.2661
     ],
     [
-      762.3009,
-      643.2057
+      781.3303,
+      512.2661
     ]
   ],
   "courts": [

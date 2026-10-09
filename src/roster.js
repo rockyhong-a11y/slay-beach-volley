@@ -3,7 +3,7 @@
 export const ROSTER = [
   { id: 'nova', name: 'NOVA', ko: '노바', color: '#79a8da', role: '올라운드 에이스', power: 4, speed: 5, jump: 4, skill: '플래시 스파이크', description: '빠른 발과 균형 잡힌 점프. 첫 경기부터 가볍게.' },
   { id: 'raven', name: 'RAVEN', ko: '레이븐', color: '#e54b59', role: '파워 스파이커', power: 5, speed: 3, jump: 4, skill: '레드라인 강타', description: '네트 앞에서 터지는 한 방. 짧고 강한 공격.' },
-  { id: 'valkyrie', name: 'VALKYRIE', ko: '발키리', color: '#dbb970', role: '네트의 수호자', power: 4, speed: 3, jump: 5, skill: '아이언 블록', description: '높은 타점과 넓은 블로킹 범위로 코트를 지배해요.' },
+  { id: 'valkyrie', name: 'VALKYRIE', ko: '발키리', color: '#dbb970', role: '네트의 수호자', power: 4, speed: 3, jump: 5, skill: '아이언 블록', description: '높은 타점으로 네트를 지켜요. 공 앞에 정확히 서야 블록 성공.' },
   { id: 'viper', name: 'VIPER', ko: '바이퍼', color: '#9fbe65', role: '코너 스페셜리스트', power: 4, speed: 5, jump: 3, skill: '프리시전 샷', description: '빠르게 빈 공간을 찾아 코너로 꽂는 정교한 공격.' },
   { id: 'ember', name: 'EMBER', ko: '엠버', color: '#e6a958', role: '컴백 챔피언', power: 5, speed: 4, jump: 3, skill: '버닝 스파이크', description: '묵직한 스파이크와 끈질긴 수비로 흐름을 바꿔요.' },
   { id: 'atlas', name: 'ATLAS', ko: '아틀라스', color: '#dc9366', role: '코트의 타이탄', power: 5, speed: 2, jump: 5, skill: '타이탄 스매시', description: '높게 뛰어올라 힘으로 밀어붙이는 압도적인 타점.' },

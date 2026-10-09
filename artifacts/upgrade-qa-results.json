@@ -1,9 +1,9 @@
 {
   "upgrade": true,
-  "staleV4ResponseSeen": true,
+  "staleV5ResponseSeen": true,
   "freshInstallNavigations": 1,
   "upgradeNavigations": 2,
-  "existingV4Navigations": 1,
+  "existingV5Navigations": 1,
   "legacyRemoved": true,
   "currentPresent": true,
   "unrelatedPreserved": true,

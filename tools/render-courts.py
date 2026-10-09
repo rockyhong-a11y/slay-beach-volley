@@ -22,6 +22,9 @@ OUT = ROOT / "assets/courts"
 RAW = ROOT / "artifacts"
 OUT.mkdir(parents=True, exist_ok=True)
 RAW.mkdir(parents=True, exist_ok=True)
+NET_HEIGHT_METERS = 4.86
+ENGINE_NET_HEIGHT = 460
+NET_VERTICAL_SCALE = NET_HEIGHT_METERS / 2.43
 args = argparse.ArgumentParser()
 args.add_argument("--all", action="store_true")
 args.add_argument("--theme", choices=["coral", "sunset", "moonlight"], default="coral")
@@ -298,7 +301,8 @@ box("Referee chair platform",(-5.10,0,1.8),(.7,1,.12),teal)
 box("Referee chair seat",(-5.1,.18,2.0),(.45,.50,.12),cream,bevel=.03)
 box("Referee chair back",(-5.1,.40,2.29),(.45,.08,.5),teal,bevel=.03)
 
-# Actual competition net: top at 2.43m, bottom at 1.43m, 8.5m stretched mesh.
+# Author the original 8.5m competition assembly, then double its vertical
+# geometry for the requested taller arcade net. Court/camera dimensions stay fixed.
 for x in [-4.6,4.6]:
     rod("Padded net upright",(x,0,.03),(x,0,2.68),.105,teal,True,vertices=20)
     rod("Post enamel cap",(x,0,2.59),(x,0,2.73),.075,steel,True,vertices=16)
@@ -317,6 +321,9 @@ for x in [-4.25,4.25]:box("White side net tape",(x,0,1.92),(.055,.035,1.0),white
 for x in [-4,4]:
     for j in range(8):rod("Red-white antenna",(x,-.04,2.35+j*.10),(x,-.04,2.45+j*.10),.014,coral if j%2 else white,True,vertices=10)
 text("Net center brand","SLAY BEACH CLUB",(0,-.025,2.396),.056,teal,is_net=True)
+net_vertical_transform = Matrix.Diagonal((1, 1, NET_VERTICAL_SCALE, 1))
+for obj in net_objects:
+    obj.matrix_world = net_vertical_transform @ obj.matrix_world
 
 def palm(x,y,height,angle):
     crown=Vector((x+.65*math.cos(angle),y+.65*math.sin(angle),height))
@@ -366,7 +373,7 @@ bpy.context.view_layer.update()
 
 # Export a 3x4 homogeneous PIXEL projection directly from the exact render camera.
 # x' = row0·[engineX,engineY,engineZ,1] / row2·[...], similarly y'.
-engine_to_meters=Matrix(((.008,0,0,-4),(0,-16/1200,0,8),(0,0,2.43/230,0),(0,0,0,1)))
+engine_to_meters=Matrix(((.008,0,0,-4),(0,-16/1200,0,8),(0,0,NET_HEIGHT_METERS/ENGINE_NET_HEIGHT,0),(0,0,0,1)))
 view=camera.matrix_world.inverted()
 camera_projection=camera.calc_matrix_camera(bpy.context.evaluated_depsgraph_get(),x=960,y=1440,scale_x=1,scale_y=1)
 clip=camera_projection @ view @ engine_to_meters
@@ -375,14 +382,14 @@ def projected(x,y,z=0):
     p=[x,y,z,1];q=[sum(row[i]*p[i] for i in range(4)) for row in pixel_rows]
     return [round(q[0]/q[2],4),round(q[1]/q[2],4)]
 reference=sum(pixel_rows[2][i]*[500,600,0,1][i] for i in range(4))
-metadata={"id":"slay-stadium-v1","width":960,"height":1440,"projection":pixel_rows,"referenceDepth":reference,
-    "netHeight":230,"corners":[projected(0,0),projected(1000,0),projected(1000,1200),projected(0,1200)],
-    "netTop":[projected(0,600,230),projected(1000,600,230)],
+metadata={"id":"slay-stadium-v2","width":960,"height":1440,"projection":pixel_rows,"referenceDepth":reference,
+    "netHeight":ENGINE_NET_HEIGHT,"netHeightMeters":NET_HEIGHT_METERS,"corners":[projected(0,0),projected(1000,0),projected(1000,1200),projected(0,1200)],
+    "netTop":[projected(0,600,ENGINE_NET_HEIGHT),projected(1000,600,ENGINE_NET_HEIGHT)],
     "courts":[{"background":"../assets/courts/%s.webp" % name,"net":"../assets/courts/%s-net.webp" % name} for name in ["coral","sunset","moonlight"]]}
 (ROOT/"src/court-scene.js").write_text("// Generated from the exact Blender camera; homogeneous engine-coordinate pixel projection.\n// Divide rows 0 and 1 by row 2; then scale pixels by canvasWidth/960, canvasHeight/1440.\nexport const COURT_SCENE = "+json.dumps(metadata,indent=2)+";\n")
 (RAW/"court-camera.json").write_text(json.dumps(metadata,indent=2))
 calibration=[]
-for x,y,z in [(0,0,0),(1000,0,0),(1000,1200,0),(0,1200,0),(0,600,230),(1000,600,230),(500,600,0),(375,850,480)]:
+for x,y,z in [(0,0,0),(1000,0,0),(1000,1200,0),(0,1200,0),(0,600,ENGINE_NET_HEIGHT),(1000,600,ENGINE_NET_HEIGHT),(500,600,0),(375,850,700)]:
     meters=engine_to_meters @ Vector((x,y,z,1))
     point=world_to_camera_view(scene,camera,Vector(meters[:3]))
     calibration.append({"engine":[x,y,z],"pixel":[point.x*960,(1-point.y)*1440],"cameraDepth":point.z})

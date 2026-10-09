@@ -1,7 +1,7 @@
 // Generated from the exact Blender camera; homogeneous engine-coordinate pixel projection.
 // Divide rows 0 and 1 by row 2; then scale pixels by canvasWidth/960, canvasHeight/1440.
 export const COURT_SCENE = {
-  "id": "slay-stadium-v1",
+  "id": "slay-stadium-v2",
   "width": 960,
   "height": 1440,
   "projection": [
@@ -25,7 +25,8 @@ export const COURT_SCENE = {
     ]
   ],
   "referenceDepth": 29.726454600691795,
-  "netHeight": 230,
+  "netHeight": 460,
+  "netHeightMeters": 4.86,
   "corners": [
     [
       255.9011,
@@ -46,12 +47,12 @@ export const COURT_SCENE = {
   ],
   "netTop": [
     [
-      197.6991,
-      643.2057
+      178.6697,
+      512.2661
     ],
     [
-      762.3009,
-      643.2057
+      781.3303,
+      512.2661
     ]
   ],
   "courts": [

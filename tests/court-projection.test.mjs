@@ -29,6 +29,23 @@ test('portrait resizing keeps the physical court, players and jumps in the same 
   }
 });
 
+test('the rendered net is twice the original height in the unchanged camera', async () => {
+  assert.equal(COURT_SCENE.netHeight, 460);
+  assert.equal(COURT_SCENE.netHeightMeters, 4.86);
+  const calibration = JSON.parse(await readFile(new URL('../artifacts/court-calibration.json', import.meta.url), 'utf8'));
+  for (const x of [0, 1000]) {
+    const measured = calibration.points.find(point => point.engine[0] === x && point.engine[1] === 600 && point.engine[2] === 460);
+    assert.ok(measured, 'Blender independently measures the raised physical net');
+    const net = projectCourtPoint(x, 600, COURT_SCENE.netHeight, 960, 1440);
+    const original = projectCourtPoint(x, 600, 230, 960, 1440);
+    assert.ok(net.y < original.y - 100, 'the taller assembly has a clearly higher visible top');
+    assert.ok(Math.abs(net.y - measured.pixel[1]) < .02);
+  }
+  // Raising the assembly must not shift the playable court or change its perspective.
+  assert.ok(Math.abs(projectCourtPoint(0, 0, 0, 960, 1440).y - 426.88665) < .02);
+  assert.ok(Math.abs(projectCourtPoint(1000, 1200, 0, 960, 1440).x - 805.76208) < .02);
+});
+
 test('all lighting themes ship separate opaque backgrounds and transparent net plates', async () => {
   assert.equal(COURT_SCENE.courts.length, 3);
   assert.equal(new Set(COURT_SCENE.courts.flatMap(court => [court.background, court.net])).size, 6);

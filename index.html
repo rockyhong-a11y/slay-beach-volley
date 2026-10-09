@@ -14,7 +14,7 @@
     <link rel="preload" href="./assets/fonts/DoHyeon-subset.ttf" as="font" type="font/ttf" crossorigin />
     <link rel="preload" href="./assets/portraits/raven.webp" as="image" fetchpriority="high" />
     <link rel="preload" href="./assets/portraits/valkyrie.webp" as="image" fetchpriority="high" />
-    <link rel="stylesheet" href="./style.css?v=5" />
+    <link rel="stylesheet" href="./style.css?v=6" />
   </head>
   <body>
     <div class="app-shell">
@@ -72,7 +72,7 @@
             <div class="joystick" id="joystick" role="group" aria-label="이동 스틱. 방향키로도 이동할 수 있습니다."><span class="joystick-cross"></span><span class="joystick-thumb" id="joystick-thumb"></span><small>이동</small></div>
             <div class="control-tip" id="control-tip">공 근처로 이동<br /><strong>가까우면 자동 토스!</strong></div>
             <div class="action-buttons">
-              <button class="action block" id="block-button" aria-label="블로킹. 네트 앞에서 눌러 상대 공격을 막습니다."><img width="24" height="24" src="./assets/icons/arrow-up.svg" alt="" /><span>블로킹</span><small>SPACE / K</small></button>
+              <button class="action block" id="block-button" aria-label="블로킹. 네트 바로 앞에서 공 위치와 손 높이를 맞춰 상대 공격을 막습니다."><img width="24" height="24" src="./assets/icons/arrow-up.svg" alt="" /><span>블로킹</span><small>SPACE / K</small></button>
               <button class="action spike" id="spike-button" aria-label="스파이크. 길게 눌렀다 놓으면 더 강하게 공격합니다."><img width="24" height="24" src="./assets/icons/lightning.svg" alt="" /><span>스파이크</span><small>HOLD / J</small></button>
             </div>
           </div>
@@ -94,7 +94,7 @@
     <dialog id="help-dialog" class="modal">
       <button class="modal-close icon-button" data-close aria-label="닫기"><img width="24" height="24" src="./assets/icons/x.svg" alt="" /></button>
       <span class="eyebrow">LET’S PLAY</span><h2>가볍게, 한 게임!</h2><p>공 근처에 가면 자동 토스!<br />공격 점프도 자동, 타이밍만 골라 스파이크!</p>
-      <div class="help-steps"><div><img width="24" height="24" src="./assets/icons/game-controller.svg" alt="" /><strong>직접 이동, 가까우면 자동 토스</strong><p>스틱 또는 방향키 · WASD로 직접 이동.<br />공을 높게 띄워 여유 있게 이어줘요.</p></div><div><img width="24" height="24" src="./assets/icons/lightning.svg" alt="" /><strong>점프는 자동, 스파이크는 직접!</strong><p>공 아래에 있으면 자동으로 뛰어요.<br />빛나는 스파이크 버튼 또는 J!<br />길게 눌렀다 놓으면 더 강하게!</p></div><div><img width="24" height="24" src="./assets/icons/arrow-up.svg" alt="" /><strong>블로킹으로 받아치기</strong><p>네트 앞에서 블로킹 버튼.<br />키보드는 SPACE 또는 K.</p></div></div>
+      <div class="help-steps"><div><img width="24" height="24" src="./assets/icons/game-controller.svg" alt="" /><strong>직접 이동, 가까우면 자동 토스</strong><p>스틱 또는 방향키 · WASD로 직접 이동.<br />공을 높게 띄워 여유 있게 이어줘요.</p></div><div><img width="24" height="24" src="./assets/icons/lightning.svg" alt="" /><strong>점프는 자동, 스파이크는 직접!</strong><p>공 아래에 있으면 자동으로 뛰어요.<br />빛나는 스파이크 버튼 또는 J!<br />길게 눌렀다 놓으면 더 강하게!</p></div><div><img width="24" height="24" src="./assets/icons/arrow-up.svg" alt="" /><strong>블로킹으로 받아치기</strong><p>네트 바로 앞에서 공 위치를 맞추세요.<br />손 높이가 맞을 때 블로킹!<br />키보드는 SPACE 또는 K.</p></div></div>
       <div class="rules-note">2대2, 최대 3회 터치, 같은 선수의 연속 터치는 금지. 상대 코트에 공을 떨어뜨리면 1점, 네트에 걸리거나 아웃이면 상대 점수. 빠른 경기는 7점 선승입니다.</div><button class="primary-button" data-close>좋아, 해볼게요 <img width="24" height="24" src="./assets/icons/arrow-right.svg" alt="" /></button>
     </dialog>
 
@@ -121,6 +121,6 @@
     <div class="toast" id="toast" role="status"></div>
     <div class="sr-only" id="announcer" role="status" aria-live="polite"></div>
     <noscript>이 게임은 JavaScript가 필요합니다. 브라우저에서 JavaScript를 활성화해주세요.</noscript>
-    <script type="module" src="./src/app.js?v=5"></script>
+    <script type="module" src="./src/app.js?v=6"></script>
   </body>
 </html>

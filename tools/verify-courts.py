@@ -7,6 +7,9 @@ root=Path(__file__).resolve().parents[1]
 metadata=json.loads((root/"artifacts/court-camera.json").read_text())
 goldens=json.loads((root/"artifacts/court-calibration.json").read_text())
 projection=metadata["projection"]
+assert metadata["netHeight"] == 460
+assert metadata["netHeightMeters"] == 4.86
+assert sum(point["engine"][1:] == [600, 460] for point in goldens["points"]) == 2
 errors=[]
 for point in goldens["points"]:
     p=point["engine"]+[1]
@@ -33,7 +36,7 @@ for theme in ["coral","sunset","moonlight"]:
         assets.append(item)
 total=sum(a["bytes"] for a in assets)
 assert total<2_000_000
-result={"method":"Projection compared with independent Blender world_to_camera_view goldens; WebP dimensions/alpha inspected using Pillow", "maxProjectionErrorPixels":max(errors),"calibrationPoints":len(errors),"mobileAssetsTotalBytes":total,"assets":assets}
+result={"method":"Projection compared with independent Blender world_to_camera_view goldens; WebP dimensions/alpha inspected using Pillow", "netHeight":metadata["netHeight"],"netHeightMeters":metadata["netHeightMeters"],"maxProjectionErrorPixels":max(errors),"calibrationPoints":len(errors),"mobileAssetsTotalBytes":total,"assets":assets}
 (root/"artifacts/court-verified.json").write_text(json.dumps(result,indent=2))
 im=Image.open(root/"assets/courts/coral.webp").convert("RGBA")
 im.alpha_composite(Image.open(root/"assets/courts/coral-net.webp").convert("RGBA"))

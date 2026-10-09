@@ -23,6 +23,8 @@ const audio = new GameAudio(saved.settings);
 audio.muted = saved.settings.muted;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const images = {}, imagePromises = {};
+const motionImages = {}, motionPromises = {};
+let motionManifest = {};
 let manifest = {}, renderer, game, mode = 'quick', courtIndex = 0, tourStage = 0;
 let playing = false, paused = false, starting = false, finishTimer = null, toastTimer = null, calloutUntil = 0;
 let accumulator = 0, previousFrame = performance.now(), hudAt = 0;
@@ -59,6 +61,23 @@ function loadImage(id) {
   });
   return imagePromises[id];
 }
+function loadMotion(id) {
+  if (motionPromises[id]) return motionPromises[id];
+  const character = motionManifest.characters?.[id];
+  if (!character) return Promise.reject(new Error(`Missing motion kit: ${id}`));
+  const image = new Image(); image.decoding = 'async'; motionImages[id] = image;
+  motionPromises[id] = new Promise((resolve, reject) => {
+    image.onload = () => resolve(image);
+    image.onerror = () => { if (motionImages[id] === image) { delete motionPromises[id]; delete motionImages[id]; } reject(new Error(`Could not load motions: ${id}`)); };
+    image.src = new URL(character.source, import.meta.url).href;
+  });
+  return motionPromises[id];
+}
+const loadCharacterAssets = id => Promise.all([loadImage(id), loadMotion(id)]);
+function pruneMotionImages() {
+  const active = new Set(game?.actors.map(actor => actor.id));
+  for (const id of Object.keys(motionImages)) if (!active.has(id)) { delete motionImages[id]; delete motionPromises[id]; }
+}
 function redrawPortraits() {
   if (!Object.keys(manifest).length) return;
   drawPortrait($('#selected-art'), saved.character, images, manifest, { full: true });
@@ -82,11 +101,11 @@ function updateSelection() {
   redrawPortraits();
   if (!playing) {
     game = makeGame(true); updateHUD();
-    if (renderer) [saved.character, saved.partner, ...opponents()].forEach(id => loadImage(id).catch(() => {}));
+    if (renderer) Promise.all([saved.character, saved.partner, ...opponents()].map(loadCharacterAssets)).then(pruneMotionImages).catch(() => {});
   }
 }
 function setMode(next) {
-  if (playing) return;
+  if (playing || starting) return;
   mode = next; document.body.dataset.mode = mode;
   document.querySelectorAll('.mode-button[data-mode]').forEach(button => {
     const active = button.dataset.mode === mode; button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active));
@@ -99,12 +118,16 @@ function setMode(next) {
   if ($('#mode-dialog').open) $('#mode-dialog').close();
 }
 function setCourt(index) {
+  if (starting) return;
   courtIndex = (index + COURTS.length) % COURTS.length;
   const court = COURTS[courtIndex];
   $('#court-name').textContent = court.en; $('#court-tag').textContent = court.tag; $('#court-index').textContent = `${courtIndex + 1} / 3`;
   $('.court-heading img').src = `./assets/icons/${court.night ? 'moon' : 'sun'}.svg`;
   renderer?.setCourt(courtIndex);
-  if (!playing) { game = makeGame(true); updateHUD(); }
+  if (!playing) {
+    game = makeGame(true); updateHUD();
+    if (renderer) Promise.all(game.actors.map(actor => loadCharacterAssets(actor.id))).then(pruneMotionImages).catch(() => {});
+  }
 }
 function clearControls() {
   keys.clear(); input.x = input.y = stickX = stickY = 0; stickPointer = spikePointer = null;
@@ -127,7 +150,7 @@ async function startMatch() {
   const startButtons = [$('#desktop-start'), $('#mobile-start')]; startButtons.forEach(button => button.disabled = true);
   try {
     if (!renderer) throw new Error('not ready');
-    await Promise.all([saved.character, saved.partner, ...opponents()].map(loadImage));
+    await Promise.all([saved.character, saved.partner, ...opponents()].map(loadCharacterAssets));
     clearTimeout(finishTimer);
     dialogs.forEach(dialog => { if (dialog.open) dialog.close(); });
     clearControls(); playing = true; paused = false; game = makeGame(); game.phaseTimer = 2.5;
@@ -136,6 +159,7 @@ async function startMatch() {
     $('#previous-court').disabled = $('#next-court').disabled = true;
     $('#announcer').textContent = `${modeNames[mode]} 시작. ${characterFor(saved.character).ko}와 ${characterFor(saved.partner).ko} 팀입니다.`;
     renderer.resize(); renderer.setCourt(courtIndex); updateHUD();
+    pruneMotionImages();
     $('#game-canvas').focus({ preventScroll: true }); audio.resume().catch(() => {});
   } catch { toast('선수 이미지가 준비되지 않았어요. 잠시 후 다시 시작해주세요.'); }
   finally { starting = false; startButtons.forEach(button => button.disabled = false); }
@@ -189,6 +213,7 @@ function handleEvents(events) {
 }
 function updateHUD() {
   if (!game) return;
+  document.body.dataset.facing = game.actors[0].facing;
   $('#team-name').textContent = `${characterFor(saved.character).name} & ${characterFor(saved.partner).name}`;
   $('#opponent-name').textContent = game.actors.slice(2).map(actor => characterFor(actor.id).name).join(' & ');
   $('#our-score').textContent = playing ? mode === 'training' ? game.stats.perfects : game.score[0] : '0';
@@ -206,7 +231,7 @@ function updateHUD() {
   $('#spike-button').classList.toggle('ready', cue === 'spike');
   $('#block-button').classList.toggle('ready', cue === 'block');
   $('#spike-button small').textContent = game.charging ? 'RELEASE / J' : cue === 'spike' ? 'NOW! / J' : 'HOLD / J';
-  $('#control-tip').innerHTML = game.charging ? '자동으로 뛰어올라요<br /><strong>놓으면 스파이크!</strong>' : cue === 'spike' ? '지금이 공격 타이밍!<br /><strong>스파이크를 누르세요!</strong>' : cue === 'approach' ? '공 아래로 이동<br /><strong>점프는 자동이에요!</strong>' : cue === 'block' || cue === 'blocking' ? '네트 앞에서 수비<br /><strong>블로킹을 누르세요!</strong>' : '공 근처로 이동<br /><strong>가까우면 자동 토스!</strong>';
+  $('#control-tip').innerHTML = game.charging ? '자동으로 뛰어올라요<br /><strong>놓으면 스파이크!</strong>' : cue === 'spike' ? '지금이 공격 타이밍!<br /><strong>스파이크를 누르세요!</strong>' : cue === 'approach' ? '공 아래로 이동<br /><strong>점프는 자동이에요!</strong>' : cue === 'block' || cue === 'blocking' ? '네트 앞에서 공 위치 맞추기<br /><strong>손 높이가 맞을 때 블로킹!</strong>' : '공 근처로 이동<br /><strong>가까우면 자동 토스!</strong>';
   document.body.dataset.cue = cue;
   document.body.dataset.phase = game.phase;
 }
@@ -240,7 +265,7 @@ for (const character of ROSTER) {
     if (playing || starting) return;
     saved.character = character.id;
     if (saved.partner === character.id) saved.partner = ROSTER.find(other => other.id !== character.id).id;
-    updateSelection(); persist(); audio.click(); loadImage(character.id).catch(() => toast('선수 이미지를 불러오지 못했어요. 다시 선택해주세요.'));
+    updateSelection(); persist(); audio.click(); loadCharacterAssets(character.id).catch(() => toast('선수 이미지를 불러오지 못했어요. 다시 선택해주세요.'));
     toast(`${character.ko} 선택! ${character.role}`);
   });
   $('#roster-grid').append(button);
@@ -325,12 +350,12 @@ const observer = new ResizeObserver(() => renderer?.resize()); observer.observe(
 
 async function initialize() {
   try {
-    const [response, courtImages] = await Promise.all([fetch(new URL('./sprites.json', import.meta.url)), loadCourtImages()]); if (!response.ok) throw new Error('manifest'); manifest = await response.json();
-    renderer = new Renderer($('#game-canvas'), images, manifest, { reducedMotion: reducedMotion.matches, shake: saved.settings.shake, courtImages });
+    const [response, courtImages, motionResponse] = await Promise.all([fetch(new URL('./sprites.json', import.meta.url)), loadCourtImages(), fetch(new URL('../assets/motions/manifest.json', import.meta.url))]); if (!response.ok || !motionResponse.ok) throw new Error('manifest'); manifest = await response.json(); motionManifest = await motionResponse.json();
+    renderer = new Renderer($('#game-canvas'), images, manifest, { reducedMotion: reducedMotion.matches, shake: saved.settings.shake, courtImages, motionImages, motionManifest });
     game = makeGame(true); setMode(mode); updateSelection();
     requestAnimationFrame(frame);
     const essentials = [saved.character, saved.partner, ...opponents()];
-    await Promise.all(essentials.map(loadImage)); $('#load-status').hidden = true;
+    await Promise.all(essentials.map(loadCharacterAssets)); $('#load-status').hidden = true;
     document.body.dataset.ready = 'true';
   } catch {
     $('#load-status').innerHTML = '<small>해변을 불러오지 못했어요. <button id="retry-load">다시 시도</button></small>';

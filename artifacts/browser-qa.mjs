@@ -16,19 +16,19 @@ if (audit) {
 }
 if (process.argv.includes('--upgrade')) {
   const target = new URL(gameURL);
-  if (!['localhost', '127.0.0.1'].includes(target.hostname) || target.pathname !== '/dist/' || target.searchParams.get('v') !== '5') {
+  if (!['localhost', '127.0.0.1'].includes(target.hostname) || target.pathname !== '/dist/' || target.searchParams.get('v') !== '6') {
     await browser.close();
-    throw new Error('Upgrade QA requires the local /dist/?v=5 URL.');
+    throw new Error('Upgrade QA requires the local /dist/?v=6 URL.');
   }
   const base = new URL('./', target), workerURL = new URL('sw.js', base).href;
   const legacyWorkerURL = new URL('qa-legacy-sw.js', base).href;
   const fixturePath = 'dist/qa-legacy-sw.js';
-  const legacyCache = 'slay-beach-volley-v4', currentCache = 'slay-beach-volley-v5';
+  const legacyCache = 'slay-beach-volley-v5', currentCache = 'slay-beach-volley-v6';
   const contexts = [], errors = [];
   let fixtureCreated = false;
   try {
     // Keep the fixture entirely inside the production /dist/ scope. It models
-    // v4's ignoreSearch cache hit without loading any current app code first.
+    // The legacy ignoreSearch cache hit without loading any current app code first.
     await writeFile(fixturePath, `const VERSION=${JSON.stringify(legacyCache)};
 self.addEventListener('install', event => { event.waitUntil(caches.open(VERSION)); self.skipWaiting(); });
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
@@ -63,20 +63,20 @@ self.addEventListener('fetch', event => {
       await navigator.serviceWorker.register(legacyWorkerURL, { scope });
       await navigator.serviceWorker.ready;
       const cache = await caches.open(legacyCache);
-      const html = `<!doctype html><html><head><title>Legacy v4 fixture</title></head><body data-legacy="v4"><div id="legacy-marker">Cached v4 app</div><script>
+      const html = `<!doctype html><html><head><title>Legacy v5 fixture</title></head><body data-legacy="v5"><div id="legacy-marker">Cached v5 app</div><script>
 sessionStorage.setItem('volley-legacy-loads', String(Number(sessionStorage.getItem('volley-legacy-loads') || 0) + 1));
-if (new URL(location.href).searchParams.get('v') === '5') navigator.serviceWorker.register(${JSON.stringify(workerURL)}, {scope:${JSON.stringify(scope)}}).catch(error => console.error(error));
+if (new URL(location.href).searchParams.get('v') === '6') navigator.serviceWorker.register(${JSON.stringify(workerURL)}, {scope:${JSON.stringify(scope)}}).catch(error => console.error(error));
 <\/script></body></html>`;
-      await cache.put(baseURL, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': 'legacy-v4' } }));
-      await cache.put(new URL('index.html', baseURL).href, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': 'legacy-v4' } }));
+      await cache.put(baseURL, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': 'legacy-v5' } }));
+      await cache.put(new URL('index.html', baseURL).href, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': 'legacy-v5' } }));
       await caches.open('other-game-cache');
     }, { legacyWorkerURL, scope: base.pathname, legacyCache, baseURL: base.href, workerURL });
     await expect.poll(() => upgradePage.evaluate(() => navigator.serviceWorker.controller?.scriptURL || '')).toBe(legacyWorkerURL);
 
-    // An existing v4 game tab must remain open; only the explicit v5 link may
+    // An existing v5 game tab must remain open; only the explicit v6 link may
     // be navigated again when the new worker takes control.
     const oldPage = await upgradeContext.newPage();
-    const oldURL = new URL(base); oldURL.searchParams.set('v', '4');
+    const oldURL = new URL(base); oldURL.searchParams.set('v', '5');
     let oldNavigations = 0;
     oldPage.on('framenavigated', frame => { if (frame === oldPage.mainFrame()) oldNavigations++; });
     oldPage.on('pageerror', error => errors.push(error.message));
@@ -86,24 +86,24 @@ if (new URL(location.href).searchParams.get('v') === '5') navigator.serviceWorke
     let upgradeNavigations = 0, legacyResponseSeen = false;
     upgradePage.on('framenavigated', frame => { if (frame === upgradePage.mainFrame()) upgradeNavigations++; });
     upgradePage.on('response', response => {
-      if (response.request().isNavigationRequest() && response.headers()['x-volley-qa'] === 'legacy-v4') legacyResponseSeen = true;
+      if (response.request().isNavigationRequest() && response.headers()['x-volley-qa'] === 'legacy-v5') legacyResponseSeen = true;
     });
     await upgradePage.goto(gameURL, { waitUntil: 'domcontentloaded' });
     await upgradePage.waitForSelector('body[data-ready="true"]', { timeout: 30000 });
-    await expect(upgradePage.locator('#game-canvas')).toHaveAttribute('data-scene', 'slay-stadium-v1');
+    await expect(upgradePage.locator('#game-canvas')).toHaveAttribute('data-scene', 'slay-stadium-v2');
     await expect.poll(() => upgradePage.evaluate(() => navigator.serviceWorker.controller?.scriptURL || '')).toBe(workerURL);
-    expect(legacyResponseSeen, 'the first request must actually exercise the stale v4 HTML').toBe(true);
+    expect(legacyResponseSeen, 'the first request must actually exercise the stale v5 HTML').toBe(true);
     expect(await upgradePage.evaluate(() => sessionStorage.getItem('volley-legacy-loads'))).toBe('1');
     await upgradePage.waitForTimeout(800);
     expect(upgradeNavigations, 'one upgrade reload is required, without a navigation loop').toBe(2);
-    expect(oldNavigations, 'an existing v4 game must not be interrupted').toBe(1);
+    expect(oldNavigations, 'an existing v5 game must not be interrupted').toBe(1);
     await expect(oldPage.locator('#legacy-marker')).toBeVisible();
     const cachesAfter = await upgradePage.evaluate(async ({ legacyCache, currentCache }) => ({
       legacyRemoved: !await caches.has(legacyCache), currentPresent: await caches.has(currentCache), unrelatedPreserved: await caches.has('other-game-cache'),
     }), { legacyCache, currentCache });
     expect(cachesAfter).toEqual({ legacyRemoved: true, currentPresent: true, unrelatedPreserved: true });
     expect(errors).toEqual([]);
-    const report = { upgrade: true, staleV4ResponseSeen: legacyResponseSeen, freshInstallNavigations: freshNavigations, upgradeNavigations, existingV4Navigations: oldNavigations, ...cachesAfter, errors };
+    const report = { upgrade: true, staleV5ResponseSeen: legacyResponseSeen, freshInstallNavigations: freshNavigations, upgradeNavigations, existingV5Navigations: oldNavigations, ...cachesAfter, errors };
     await writeFile('artifacts/upgrade-qa-results.json', JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report));
   } finally {
@@ -111,6 +111,176 @@ if (new URL(location.href).searchParams.get('v') === '5') navigator.serviceWorke
     if (fixtureCreated) await unlink(fixturePath);
     await browser.close();
   }
+  process.exit(0);
+}
+if (process.argv.includes('--motions')) {
+  const motionContext = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1, hasTouch: true });
+  const motionPage = await motionContext.newPage();
+  const errors = [], responses = [];
+  motionPage.on('pageerror', error => errors.push(error.message));
+  motionPage.on('response', response => { if (response.status() >= 400) responses.push({ status: response.status(), url: response.url() }); });
+  try {
+    await motionPage.goto(gameURL);
+    await motionPage.waitForSelector('body[data-ready="true"]', { timeout: 30000 });
+    await expect(motionPage.locator('#game-canvas')).toHaveAttribute('data-scene', 'slay-stadium-v2');
+    await expect(motionPage.locator('#game-canvas')).toHaveAttribute('data-animation', 'directional-rig-60');
+    const authored = await motionPage.evaluate(async gameURL => {
+      const moduleURL = new URL('src/character-motion.js', gameURL);
+      const { CharacterAnimator, MOTION_TIMING, CONTACT_PHASE, sampleMotion } = await import(moduleURL.href);
+      const { projectCourtPoint } = await import(new URL('src/render.js', gameURL).href);
+      const { ROSTER } = await import(new URL('src/roster.js', gameURL).href);
+      const manifest = await (await fetch(new URL('assets/motions/manifest.json', gameURL))).json();
+      const images = Object.fromEntries(await Promise.all(ROSTER.map(async character => {
+        const image = new Image(); image.src = new URL(manifest.characters[character.id].source, moduleURL).href;
+        await image.decode(); return [character.id, image];
+      })));
+      const proof = document.createElement('main'); proof.id = 'motion-proof';
+      Object.assign(proof.style, { position: 'absolute', top: '0', left: '0', zIndex: '9999', display: 'block', background: '#e8e3d6', width: '1920px' });
+      document.body.append(proof);
+      const makeCanvas = (id, width, height) => {
+        const canvas = document.createElement('canvas'); canvas.id = id; canvas.width = width; canvas.height = height;
+        Object.assign(canvas.style, { display: 'block', width: `${width}px`, height: `${height}px` }); proof.append(canvas);
+        return canvas;
+      };
+      const directions = makeCanvas('motion-directions', 880, 2660), actions = makeCanvas('motion-actions', 1920, 2660);
+      const directionsCtx = directions.getContext('2d'), actionsCtx = actions.getContext('2d');
+      const hash = canvas => {
+        const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+        let h = 2166136261;
+        for (let i = 0; i < pixels.length; i++) h = Math.imul(h ^ pixels[i], 16777619);
+        return h >>> 0;
+      };
+      const draw = (ctx, id, facing, clip, phase, x, y, width, height, label = true) => {
+        ctx.fillStyle = '#e8e3d6'; ctx.fillRect(x, y, width, height);
+        ctx.strokeStyle = '#c3bbab'; ctx.strokeRect(x + 1, y + 1, width - 2, height - 2);
+        ctx.fillStyle = '#193a36'; ctx.font = 'bold 12px sans-serif';
+        if (label) ctx.fillText(`${id.toUpperCase()} / ${facing} / ${clip} ${phase.toFixed(2)}`, x + 8, y + 18);
+        const animator = new CharacterAnimator();
+        const actor = { id, index: 0, team: 0, x: 500, y: 900, z: clip === 'idle' || clip === 'run' ? 0 : 75, facing, moving: clip === 'run' ? 1 : 0, actionAt: 0, contactAt: -10, landAt: -10 };
+        let state = { time: 0, phase: 'rally' };
+        if (clip === 'run') {
+          animator.pose(actor, state);
+          actor.x += phase * 180; state.time = phase * MOTION_TIMING.run;
+        } else if (clip !== 'idle') {
+          actor.jumpKind = clip; state.time = phase * MOTION_TIMING[clip];
+          if (phase >= CONTACT_PHASE[clip]) {
+            actor.contactKind = clip === 'toss' ? 'set' : clip;
+            actor.contactAt = state.time - (phase - CONTACT_PHASE[clip]) * MOTION_TIMING[clip];
+          }
+        }
+        const anchor = projectCourtPoint(actor.x, actor.y, 0, 960, 1440), scale = clip === 'idle' ? 1.14 : .97;
+        const project = (wx, wy, wz) => {
+          const p = projectCourtPoint(wx, wy, wz, 960, 1440);
+          return { x: x + width / 2 + (p.x - anchor.x) * scale, y: y + height - 20 + (p.y - anchor.y) * scale };
+        };
+        const parts = new Set(), actualDraw = ctx.drawImage;
+        ctx.drawImage = function(image, sx, sy, sw, sh, ...rest) {
+          parts.add([sx, sy, sw, sh].join(',')); return actualDraw.call(this, image, sx, sy, sw, sh, ...rest);
+        };
+        animator.draw(ctx, actor, state, { image: images[id], view: manifest.characters[id].views[facing], project });
+        ctx.drawImage = actualDraw;
+        return { parts: parts.size, clip: animator.pose(actor, state).clip };
+      };
+      for (const [row, character] of ROSTER.entries()) {
+        for (const [column, facing] of ['down', 'up', 'left', 'right'].entries()) draw(directionsCtx, character.id, facing, 'idle', 0, column * 220, row * 266, 220, 266);
+        for (const [actionIndex, clip] of ['run', 'toss', 'spike', 'block'].entries()) {
+          const phases = clip === 'run' ? [.1, .42, .75] : [.15, CONTACT_PHASE[clip], .84];
+          for (const [phaseIndex, phase] of phases.entries()) draw(actionsCtx, character.id, 'right', clip, phase, (actionIndex * 3 + phaseIndex) * 160, row * 266, 160, 266);
+        }
+      }
+      const frameCanvas = document.createElement('canvas'); frameCanvas.width = 180; frameCanvas.height = 266;
+      const ctx = frameCanvas.getContext('2d'), characters = [];
+      for (const character of ROSTER) {
+        const entry = manifest.characters[character.id], facingFrames = {};
+        for (const facing of ['down', 'up', 'left', 'right']) {
+          const animator = new CharacterAnimator();
+          const actor = { id: character.id, index: 0, team: 0, x: 500, y: 900, z: 0, facing, moving: 1, contactAt: -10, landAt: -10 };
+          const state = { time: 0, phase: 'rally' }, hashes = new Set();
+          let maxJointStep = 0, previous = null, partCount = 0;
+          animator.pose(actor, state);
+          for (let frame = 0; frame < 60; frame++) {
+            actor.x = 500 + frame * 3; state.time = frame / 60;
+            ctx.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
+            const anchor = projectCourtPoint(actor.x, actor.y, 0, 960, 1440);
+            const project = (x, y, z) => { const p = projectCourtPoint(x, y, z, 960, 1440); return { x: 90 + p.x - anchor.x, y: 246 + p.y - anchor.y }; };
+            const actualDraw = ctx.drawImage, used = new Set();
+            ctx.drawImage = function(image, sx, sy, sw, sh, ...rest) { used.add([sx, sy, sw, sh].join(',')); return actualDraw.call(this, image, sx, sy, sw, sh, ...rest); };
+            animator.draw(ctx, actor, state, { image: images[character.id], view: entry.views[facing], project });
+            ctx.drawImage = actualDraw; partCount = Math.max(partCount, used.size);
+            const pose = animator.pose(actor, state);
+            if (previous) for (const name of Object.keys(pose.joints)) {
+              const a = previous[name], b = pose.joints[name]; maxJointStep = Math.max(maxJointStep, Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z));
+            }
+            previous = pose.joints; hashes.add(hash(frameCanvas));
+          }
+          facingFrames[facing] = { frames: 60, distinctCanvasFrames: hashes.size, maxJointStep, articulatedPartsDrawn: partCount };
+        }
+        const actions = Object.fromEntries(['toss', 'spike', 'block'].map(clip => {
+          const hashes = new Set(), poses = [];
+          for (let frame = 0; frame < 60; frame++) {
+            const phase = frame / 60;
+            draw(ctx, character.id, 'right', clip, phase, 0, 0, frameCanvas.width, frameCanvas.height, false);
+            hashes.add(hash(frameCanvas)); poses.push(JSON.stringify(sampleMotion(clip, phase).joints));
+          }
+          return [clip, { frames: 60, distinctCanvasFrames: hashes.size, distinctJointPoses: new Set(poses).size }];
+        }));
+        characters.push({ id: character.id, image: [images[character.id].naturalWidth, images[character.id].naturalHeight], generatedDirectionalKit: entry.identity.generatedDirectionalKit, facingFrames, actions });
+      }
+      return { method: 'Real generated images and CharacterAnimator.draw, calibrated projectCourtPoint, 60 sequential movement poses, preparation/contact/recovery action snapshots', characters };
+    }, gameURL);
+    expect(authored.characters).toHaveLength(10);
+    for (const character of authored.characters) {
+      expect(character.generatedDirectionalKit, character.id).toBe(true);
+      for (const [facing, frames] of Object.entries(character.facingFrames)) {
+        expect(frames.articulatedPartsDrawn, `${character.id} ${facing} upper/lower limb parts`).toBe(11);
+        expect(frames.distinctCanvasFrames, `${character.id} ${facing} rendered run poses`).toBeGreaterThanOrEqual(55);
+        expect(frames.maxJointStep, `${character.id} ${facing} movement continuity`).toBeLessThan(18);
+      }
+      for (const [action, frames] of Object.entries(character.actions)) {
+        expect(frames.distinctJointPoses, `${character.id} ${action} authored poses`).toBe(60);
+        expect(frames.distinctCanvasFrames, `${character.id} ${action} rendered poses`).toBeGreaterThanOrEqual(55);
+      }
+    }
+    await motionPage.locator('#motion-directions').screenshot({ path: 'artifacts/motion-directions.png' });
+    await motionPage.locator('#motion-actions').screenshot({ path: 'artifacts/motion-actions.png' });
+    await motionPage.evaluate(() => document.querySelector('#motion-proof').remove());
+    await motionPage.getByRole('button', { name: '노바 선택', exact: true }).click();
+    await motionPage.locator('#desktop-start').click();
+    await motionPage.waitForSelector('body[data-phase="rally"]');
+    const runtime = [];
+    for (const [key, facing] of [['ArrowRight', 'right'], ['ArrowLeft', 'left'], ['ArrowUp', 'up'], ['ArrowDown', 'down']]) {
+      const before = await motionPage.locator('#you-indicator').evaluate(element => element.style.transform);
+      await motionPage.keyboard.down(key);
+      const frames = await motionPage.evaluate(async () => {
+        const canvas = document.querySelector('#game-canvas'), ctx = canvas.getContext('2d'), hashes = new Set(), timestamps = [];
+        for (let frame = 0; frame < 60; frame++) {
+          const timestamp = await new Promise(requestAnimationFrame); timestamps.push(timestamp);
+          const box = canvas.getBoundingClientRect(), player = document.querySelector('#you-indicator').getBoundingClientRect();
+          const px = ((player.left + player.width / 2 - box.left) / box.width) * canvas.width;
+          const py = ((player.bottom - box.top) / box.height) * canvas.height;
+          const x = Math.max(0, Math.min(canvas.width - 150, Math.floor(px - 75))), y = Math.max(0, Math.min(canvas.height - 220, Math.floor(py + 8)));
+          const pixels = ctx.getImageData(x, y, 150, 220).data;
+          let h = 2166136261; for (let i = 0; i < pixels.length; i += 4) h = Math.imul(h ^ pixels[i] ^ pixels[i + 1] ^ pixels[i + 2], 16777619);
+          hashes.add(h >>> 0);
+        }
+        return { frames: timestamps.length, distinctPlayerFrames: hashes.size, meanFrameMs: (timestamps.at(-1) - timestamps[0]) / (timestamps.length - 1), renderedFacing: document.body.dataset.facing };
+      });
+      await motionPage.keyboard.up(key);
+      const after = await motionPage.locator('#you-indicator').evaluate(element => element.style.transform);
+      expect(after, `${facing} movement reaches actual game`).not.toBe(before);
+      expect(frames.distinctPlayerFrames, `${facing} actual player frames`).toBeGreaterThan(40);
+      expect(frames.meanFrameMs, 'actual animation frame delivery').toBeLessThan(40);
+      expect(frames.renderedFacing).toBe(facing);
+      runtime.push({ key, facing, ...frames });
+    }
+    await motionPage.setViewportSize({ width: 393, height: 852 });
+    await motionPage.waitForTimeout(120);
+    await motionPage.screenshot({ path: 'artifacts/motion-mobile-runtime.png', fullPage: false });
+    expect(errors).toEqual([]); expect(responses).toEqual([]);
+    const report = { ...authored, runtime, errors, responses };
+    await writeFile('artifacts/motion-qa-results.json', JSON.stringify(report, null, 2));
+    console.log(JSON.stringify({ motions: true, characters: authored.characters.length, directionalMovementFrames: 2400, authoredActionFrames: 1800, runtime, errors, responses }));
+  } finally { await motionContext.close(); await browser.close(); }
   process.exit(0);
 }
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1, hasTouch: true });
@@ -143,7 +313,8 @@ page.on('console', message => { if (message.type() === 'error') errors.push(mess
 page.on('response', response => { if (response.status() >= 400) responses.push({ status: response.status(), url: response.url() }); });
 await page.goto(gameURL);
 await page.waitForSelector('body[data-ready="true"]', { timeout: 30000 });
-await expect(page.locator('#game-canvas')).toHaveAttribute('data-scene', 'slay-stadium-v1');
+await expect(page.locator('#game-canvas')).toHaveAttribute('data-scene', 'slay-stadium-v2');
+await expect(page.locator('#game-canvas')).toHaveAttribute('data-animation', 'directional-rig-60');
 const migratedSave = await page.evaluate(() => JSON.parse(localStorage.getItem('slay-beach-volley-v1')));
 expect(migratedSave.settings).not.toHaveProperty('assist'); expect(migratedSave.wins).toBe(2);
 await expect(page.locator('#assist-setting')).toHaveCount(0);
@@ -221,7 +392,7 @@ await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: []
 await page.clock.runFor(120);
 await expect(page.locator('#power-meter')).not.toBeVisible();
 console.log('An 800 ms touch hold charges and releases the spike without a selection menu or popup.');
-await page.getByRole('button', { name: '블로킹. 네트 앞에서 눌러 상대 공격을 막습니다.', exact: true }).click();
+await page.locator('#block-button').click();
 await page.waitForTimeout(150);
 await page.getByRole('button', { name: '스파이크. 길게 눌렀다 놓으면 더 강하게 공격합니다.' }).click();
 await page.getByRole('button', { name: '일시정지', exact: true }).click();

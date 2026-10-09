@@ -5,7 +5,7 @@ await rm('dist', { recursive: true, force: true });
 await mkdir('dist', { recursive: true });
 for (const file of ['index.html', 'style.css', 'manifest.webmanifest', 'sw.js', 'favicon.svg']) await copyFile(file, `dist/${file}`);
 await cp('src', 'dist/src', { recursive: true });
-await cp('assets', 'dist/assets', { recursive: true, filter: source => !source.endsWith('.png') && !source.endsWith('DoHyeon-Regular.ttf') });
+await cp('assets', 'dist/assets', { recursive: true, filter: source => !source.includes('/motions/source') && !source.endsWith('.png') && !source.endsWith('DoHyeon-Regular.ttf') });
 await copyFile('LICENSE', 'dist/LICENSE');
 await build({ entryPoints: ['src/app.js'], outfile: 'dist/src/app.js', bundle: true, minify: true, format: 'esm', target: 'es2022' });
 const css = await transform(await readFile('style.css', 'utf8'), { loader: 'css', minify: true });

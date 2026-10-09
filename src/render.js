@@ -1,7 +1,8 @@
-import { COURTS, characterFor } from './roster.js';
+import { COURTS } from './roster.js';
 import { playerCue, predictLanding } from './engine.js';
 import { COURT_SCENE } from './court-scene.js';
 import { ImpactEffects } from './impact-effects.js';
+import { CharacterAnimator } from './character-motion.js';
 
 const TAU = Math.PI * 2;
 export async function loadCourtImages() {
@@ -23,12 +24,15 @@ export function projectCourtPoint(x, y, z, width, height) {
   return { x: dot(mx) / depth / COURT_SCENE.width * width, y: dot(my) / depth / COURT_SCENE.height * height, scale: Math.max(.6, Math.min(1.32, COURT_SCENE.referenceDepth / depth)) };
 }
 export class Renderer {
-  constructor(canvas, images, manifest, { reducedMotion = false, shake = true, courtImages = [] } = {}) {
+  constructor(canvas, images, manifest, { reducedMotion = false, shake = true, courtImages = [], motionImages = {}, motionManifest = {} } = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
     this.images = images;
     this.manifest = manifest;
     this.courtImages = courtImages;
+    this.motionImages = motionImages;
+    this.motionManifest = motionManifest;
+    this.animator = new CharacterAnimator();
     this.effects = new ImpactEffects({ reducedMotion });
     this.reducedMotion = reducedMotion;
     this.allowShake = shake;
@@ -39,6 +43,7 @@ export class Renderer {
     this.netWobble = 0;
     this.lastTime = 0;
     this.canvas.dataset.scene = COURT_SCENE.id;
+    this.canvas.dataset.animation = 'directional-rig-60';
     this.resize();
   }
   resize() {
@@ -61,6 +66,7 @@ export class Renderer {
     this.courtIndex = index;
     this.drawBackground(this.bctx);
     this.effects.clear(); this.trail.length = 0; this.particles.length = 0;
+    this.animator.clear();
   }
   project(x, y, z = 0) {
     return projectCourtPoint(x, y, z, this.w, this.h);
@@ -82,23 +88,14 @@ export class Renderer {
     ctx.fillStyle = COURTS[this.courtIndex].sand; ctx.fillRect(0, 0, w, h);
     if (background?.naturalWidth) ctx.drawImage(background, 0, 0, w, h);
   }
-  actor(ctx,actor,time,state){
-    const im=this.images[actor.id],meta=this.manifest[actor.id];if(!im?.complete||!im.naturalWidth||!meta)return;
-    const p=this.project(actor.x,actor.y,actor.z),base=this.project(actor.x,actor.y);
-    let frame=actor.pose===1?1:0;
-    if(state.phase==='point'&&state.lastPoint?.team!==actor.team)frame=2;
-    const f=meta.frames[frame];
-    const height=(this.w*.178)*p.scale*(actor.id==='atlas'?1.06:1),width=height*f.width/f.height;
-    const bob=this.reducedMotion?0:actor.z>0?0:actor.moving?Math.sin(time*19+actor.index)*2:Math.sin(time*2.2+actor.index)*.8;
-    ctx.save();ctx.translate(p.x,p.y+bob);
-    if(!this.reducedMotion)ctx.rotate(actor.moving?Math.sin(time*10+actor.index)*.035:actor.z>0?-.035:Math.sin(time*2+actor.index)*.015);
-    if(actor.z>0&&!this.reducedMotion)ctx.scale(.97,1.03);
-    if(actor.index>=2)ctx.scale(-1,1);
-    const imageScale=im.naturalWidth/meta.width;
-    ctx.drawImage(im,f.x*imageScale,f.y*imageScale,f.width*imageScale,f.height*imageScale,-width/2,-height,width,height);
-    ctx.restore();
-    if(actor.index===0){ctx.strokeStyle='#147a6580';ctx.lineWidth=1.3;ctx.beginPath();ctx.ellipse(base.x,base.y+2,13,4,0,0,TAU);ctx.stroke();}
-    if(actor.index===1){ctx.fillStyle='#467f7299';ctx.font=`600 ${Math.max(6,this.w*.016)}px Outfit`;ctx.textAlign='center';ctx.fillText('PARTNER',p.x,p.y-height-6);}
+  actor(ctx, actor, time, state) {
+    const image = this.motionImages[actor.id], character = this.motionManifest.characters?.[actor.id];
+    if (!image?.naturalWidth || !character) return;
+    const facing = actor.facing || (actor.team === 0 ? 'up' : 'down');
+    const head = this.animator.draw(ctx, actor, state, { image, view: character.views[facing], project: (x, y, z) => this.project(x, y, z), reducedMotion: this.reducedMotion });
+    const base = this.project(actor.x, actor.y);
+    if (actor.index === 0) { ctx.strokeStyle = '#147a6580'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.ellipse(base.x, base.y + 2, 13, 4, 0, 0, TAU); ctx.stroke(); }
+    if (actor.index === 1) { ctx.fillStyle = '#467f7299'; ctx.font = `600 ${Math.max(6, this.w * .016)}px Outfit`; ctx.textAlign = 'center'; ctx.fillText('PARTNER', head.x, head.y - 6); }
   }
   net(ctx, time) {
     const plate = this.courtImages[this.courtIndex]?.net;
@@ -121,6 +118,7 @@ export class Renderer {
   burst(event) {
     this.effects.reducedMotion = this.reducedMotion;
     if (event.type === 'hit') {
+      this.animator.hit(event, this.state?.time || 0);
       this.effects.burst(event);
       if ((event.kind === 'spike' || event.kind === 'block') && this.allowShake && !this.reducedMotion) this.shake = event.perfect ? 7 : event.kind === 'block' ? 4.5 : 5.5;
       if (event.kind === 'block') this.netWobble = 2.5;
@@ -171,8 +169,9 @@ export class Renderer {
     // Keep the ball readable through the contact spark's brightest frame.
     this.ball(ctx, state.ball, cue === 'spike');
     ctx.restore();
-    const player = state.actors[0], p = project(player.x, player.y, player.z);
-    return { ...p, y: p.y - w * .178 * p.scale * (player.id === 'atlas' ? 1.06 : 1) - 9 };
+    // Keep the player marker steady through breathing and arm/torso motion.
+    const player = state.actors[0], p = project(player.x, player.y, player.z + 285);
+    return { ...p, y: p.y - 9 };
   }
 }
 
