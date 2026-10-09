@@ -15,6 +15,10 @@ if (audit) {
   await browser.close(); process.exit(0);
 }
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1, hasTouch: true });
+await context.addInitScript(() => {
+  const key = 'slay-beach-volley-v1';
+  if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ wins: 2, settings: { assist: true } }));
+});
 const page = await context.newPage();
 async function snapshot(path) {
   // Let ResizeObserver and the canvas draw after a viewport or media change.
@@ -32,6 +36,9 @@ page.on('console', message => { if (message.type() === 'error') errors.push(mess
 page.on('response', response => { if (response.status() >= 400) responses.push({ status: response.status(), url: response.url() }); });
 await page.goto(gameURL);
 await page.waitForSelector('body[data-ready="true"]', { timeout: 30000 });
+const migratedSave = await page.evaluate(() => JSON.parse(localStorage.getItem('slay-beach-volley-v1')));
+expect(migratedSave.settings).not.toHaveProperty('assist'); expect(migratedSave.wins).toBe(2);
+await expect(page.locator('#assist-setting')).toHaveCount(0);
 const longPressGuards = await page.evaluate(() => {
   const ui = ['#desktop-start', '.brand', '#help-button img', '.roster-item small', '.roster-item img', '#game-canvas', '#block-button span', '#spike-button span'];
   const results = ui.map(selector => {
@@ -71,6 +78,13 @@ console.log(JSON.stringify(await page.evaluate(() => ({ viewport: innerHeight, w
 await page.getByRole('button', { name: '경기 시작', exact: true }).click();
 await page.waitForSelector('body[data-phase="rally"]');
 await snapshot('artifacts/mobile-game.png');
+const initialPosition = await page.locator('#you-indicator').evaluate(element => element.style.transform);
+await page.keyboard.down('ArrowRight'); await page.clock.runFor(220); await page.keyboard.up('ArrowRight'); await page.clock.runFor(32);
+const stoppedPosition = await page.locator('#you-indicator').evaluate(element => element.style.transform);
+expect(stoppedPosition).not.toBe(initialPosition);
+await page.clock.runFor(1000);
+expect(await page.locator('#you-indicator').evaluate(element => element.style.transform)).toBe(stoppedPosition);
+console.log('Direction input moves the player; releasing it leaves the player in place, even with a legacy assistance preference.');
 const touch = await context.newCDPSession(page);
 const spikeRect = await page.locator('#spike-button').boundingBox();
 await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: spikeRect.x + spikeRect.width / 2, y: spikeRect.y + spikeRect.height / 2, id: 1 }] });
@@ -108,12 +122,13 @@ await expect(page.getByRole('button', { name: '오닉스 선택', exact: true })
 console.log('All 10 characters can be selected; selection persists after reload.');
 await page.getByRole('button', { name: /함께 뛸 파트너:/ }).click();
 await page.getByRole('button', { name: '게임 설정', exact: true }).click();
-await page.locator('#music-setting').uncheck(); await page.locator('#sfx-setting').uncheck(); await page.locator('#assist-setting').uncheck();
+await page.locator('#music-setting').uncheck(); await page.locator('#sfx-setting').uncheck();
 await page.getByRole('button', { name: '설정 완료' }).click();
 await page.reload(); await page.waitForSelector('body[data-ready="true"]');
 await page.getByRole('button', { name: '게임 설정', exact: true }).click();
-await expect(page.locator('#assist-setting')).not.toBeChecked();
-await page.locator('#assist-setting').check(); await page.getByRole('button', { name: '설정 완료' }).click();
+await expect(page.locator('#assist-setting')).toHaveCount(0);
+await expect(page.locator('#music-setting')).not.toBeChecked(); await expect(page.locator('#sfx-setting')).not.toBeChecked();
+await page.getByRole('button', { name: '설정 완료' }).click();
 await page.getByRole('button', { name: '조작 방법' }).click();
 await expect(page.locator('#help-dialog')).toBeVisible(); await page.keyboard.press('Escape');
 await page.getByRole('button', { name: '경기 시작', exact: true }).click(); await page.waitForSelector('body[data-phase="rally"]');
@@ -129,6 +144,8 @@ await page.getByRole('button', { name: '선수 선택으로', exact: true }).fil
 await page.getByRole('button', { name: /빠른 경기.*변경/ }).click();
 await page.getByRole('button', { name: /타이밍 연습.*60초 동안 실력 다지기/ }).click();
 await page.getByRole('button', { name: '경기 시작', exact: true }).click();
+await page.waitForSelector('body[data-phase="rally"]');
+await page.keyboard.down('ArrowUp'); await page.clock.runFor(350); await page.keyboard.up('ArrowUp');
 let foundAttack = false;
 for (let frame = 0; frame < 200; frame++) {
   await page.clock.runFor(150);
@@ -154,6 +171,6 @@ await page.setViewportSize({ width: 1440, height: 1000 });
 await snapshot('artifacts/desktop-dark.png');
 await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'no-preference' });
 await snapshot('artifacts/desktop-lobby.png');
-await writeFile('artifacts/browser-qa-results.json', JSON.stringify({ errors, responses, layouts, longPressGuards, checked: ['10 original characters','keyboard movement and block','800 ms touch charge without selection or popup','automatic jump and real manual spike','charge button','joystick pointer capture','pause and resume','persistent character and settings','help modal','60 second practice and result','dark mode','reduced motion'] }, null, 2));
+await writeFile('artifacts/browser-qa-results.json', JSON.stringify({ errors, responses, layouts, longPressGuards, checked: ['10 original characters','manual movement stops when input is released','legacy movement assistance removed without losing records','keyboard movement and block','800 ms touch charge without selection or popup','automatic jump and real manual spike after manual positioning','charge button','joystick pointer capture','pause and resume','persistent character and settings','help modal','60 second practice and result','dark mode','reduced motion'] }, null, 2));
 if(errors.length || responses.length) throw new Error(JSON.stringify({errors,responses}));
 await browser.close();

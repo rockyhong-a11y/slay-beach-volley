@@ -5,15 +5,15 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export const teamAt = y => y >= WORLD.net ? 0 : 1;
 
-export function createMatch({ character = 'nova', partner = 'seraph', opponents = ['raven', 'valkyrie'], difficulty = 1, targetScore = 7, assist = true, autoplay = false, training = false, seed = Date.now() } = {}) {
+export function createMatch({ character = 'nova', partner = 'seraph', opponents = ['raven', 'valkyrie'], difficulty = 1, targetScore = 7, autoplay = false, training = false, seed = Date.now() } = {}) {
   const ids = [character, partner, ...opponents];
   const homes = [{ x: 335, y: 975 }, { x: 685, y: 790 }, { x: 685, y: 225 }, { x: 315, y: 410 }];
   return {
-    phase: 'ready', phaseTimer: 1.5, time: 0, score: [0, 0], targetScore, difficulty, assist, autoplay, training,
+    phase: 'ready', phaseTimer: 1.5, time: 0, score: [0, 0], targetScore, difficulty, autoplay, training,
     remaining: 60, seed: seed >>> 0, serving: 0, possession: 0, touches: 0, lastActor: -1, receiver: 0,
     actors: ids.map((id, index) => ({ id, team: index < 2 ? 0 : 1, index, ...homes[index], home: { ...homes[index] }, z: 0, vz: 0, hang: 0, jumpKind: null, moving: 0, pose: 0, poseTime: 0, cooldown: 0, miss: false })),
     ball: { x: 335, y: 975, z: 170, vx: 0, vy: 0, vz: 0, gravity: WORLD.gravity, spin: 0, hot: 0 },
-    events: [], rally: 0, freeze: 0, charge: 0, charging: false, swingBuffer: 0, blockBuffer: 0, manualUntil: 0,
+    events: [], rally: 0, freeze: 0, charge: 0, charging: false, swingBuffer: 0, blockBuffer: 0,
     stats: { spikes: 0, perfects: 0, longestRally: 0, points: 0, blocks: 0 }, winner: null, lastPoint: null,
     aiTimer: 0, handler: 0, bounce: 0,
   };
@@ -90,7 +90,7 @@ function updateHandler(state) {
   else state.handler = state.receiver;
   state.actors.forEach(actor => { actor.miss = false; });
   if (!state.autoplay && !state.training) {
-    // Longer rallies get harder. A manual swing can rescue a missed assisted receive.
+    // Longer rallies get harder. A manual swing can rescue a missed receive.
     const fatigue = Math.max(0, state.rally - 4) * 0.018;
     const base = state.handler >= 2 ? [0.16, 0.095, 0.04][clamp(state.difficulty, 0, 2)] : [0.03, 0.05, 0.075][clamp(state.difficulty, 0, 2)];
     const missChance = Math.min(0.45, base + fatigue);
@@ -240,8 +240,7 @@ function moveActor(state, actor, dt, input) {
     const length = Math.max(1, Math.hypot(input.x, input.y));
     dx = input.x / length;
     dy = input.y / length;
-    state.manualUntil = state.time + 0.65;
-  } else if ((!human || state.assist) && state.time >= (human ? state.manualUntil : 0)) {
+  } else if (!human) {
     let target = actor.home;
     if (actor.index === state.handler && actor.team === state.possession && state.phase === 'rally') {
       target = predictLanding(state.ball, state.touches === 2 ? 300 : 145);

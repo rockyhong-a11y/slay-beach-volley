@@ -16,12 +16,21 @@ function rallyState() {
 function run(state, limit = 360, active = false) {
   const events = [];
   for (let i = 0; i < limit * 120 && state.phase !== 'finished'; i++) {
+    const input = { x: 0, y: 0 };
+    // Active fixtures supply direction input, just as a player uses the stick.
+    if (active && state.phase === 'rally' && state.possession === 0) {
+      const target = predictLanding(state.ball, state.touches >= 1 ? 300 : 145);
+      const dx = Math.max(95, Math.min(905, target.x)) - state.actors[0].x;
+      const dy = Math.max(675, Math.min(1120, target.y)) - state.actors[0].y;
+      const length = Math.hypot(dx, dy);
+      if (length > 40) { input.x = dx / length; input.y = dy / length; }
+    }
     if (active && state.phase === 'rally' && state.possession === 0 && state.touches >= 1 && state.handler === 0) {
       const player = state.actors[0];
       if (playerCue(state) === 'approach' && !state.charging) beginCharge(state);
       if (playerCue(state) === 'spike' && Math.abs(state.ball.z - player.z - 205) < 75 && state.ball.vz < 0) releaseSpike(state);
     }
-    step(state, frame); events.push(...drainEvents(state));
+    step(state, frame, input); events.push(...drainEvents(state));
     assert.ok(Number.isFinite(state.ball.x) && Number.isFinite(state.ball.y) && Number.isFinite(state.ball.z));
     for (const actor of state.actors) assert.ok(actor.x >= 70 && actor.x <= 930 && actor.y >= 75 && actor.y <= 1125 && actor.z >= 0);
   }
@@ -52,7 +61,7 @@ test('an airborne, well timed manual spike gets a perfect and hit stop', () => {
   const hit = drainEvents(state).find(event => event.type === 'hit' && event.manual);
   assert.equal(hit.kind, 'spike'); assert.equal(hit.perfect, true); assert.equal(state.stats.spikes, 1); assert.equal(state.stats.perfects, 1); assert.ok(state.freeze > 0); assert.equal(state.possession, 1);
 });
-test('a missed assisted receive can be rescued by a manual swing', () => {
+test('a missed receive can be rescued by a manual swing', () => {
   const state = rallyState(); state.actors[0].miss = true; releaseSpike(state); step(state, frame);
   assert.equal(state.stats.spikes, 1);
 });
@@ -79,10 +88,27 @@ test('a player cannot touch the ball twice in a row', () => {
   const state = rallyState(); state.lastActor = 0; state.touches = 1; releaseSpike(state); step(state, frame);
   assert.equal(drainEvents(state).filter(event => event.type === 'hit').length, 0); assert.equal(state.touches, 1);
 });
-test('turning off assistance leaves the player under manual control', () => {
-  const state = rallyState(); state.assist = false; const x = state.actors[0].x;
-  state.handler = 2; state.possession = 1; step(state, frame); assert.equal(state.actors[0].x, x);
-  step(state, frame, { x: 1, y: 0 }); assert.ok(state.actors[0].x > x);
+test('player movement always requires input, including with a legacy assist flag', () => {
+  for (const possession of [0, 1]) {
+    const state = rallyState(); state.assist = true; state.possession = possession; state.handler = possession === 0 ? 0 : 2;
+    Object.assign(state.actors[0], { z: 0, vz: 0 });
+    Object.assign(state.ball, { x: 750, y: possession === 0 ? 900 : 250, z: 3000, vz: 0 });
+    const { x, y } = state.actors[0];
+    run(state, 1);
+    assert.equal(state.actors[0].x, x, 'no chasing the ball or returning home without input');
+    assert.equal(state.actors[0].y, y, 'no chasing the ball or returning home without input');
+    step(state, frame, { x: 1, y: 0 }); assert.ok(state.actors[0].x > x);
+  }
+});
+test('releasing movement keeps the player in place after the old assistance delay', () => {
+  const state = rallyState(); state.possession = 1; state.handler = 2;
+  Object.assign(state.actors[0], { z: 0, vz: 0 });
+  Object.assign(state.ball, { x: 750, y: 250, z: 3000, vz: 0 });
+  for (let i = 0; i < 24; i++) step(state, frame, { x: 1, y: -1 });
+  const { x, y } = state.actors[0];
+  assert.ok(x > 400 && y < 790, 'a held direction must move the player');
+  run(state, 1.2);
+  assert.equal(state.actors[0].x, x); assert.equal(state.actors[0].y, y);
 });
 test('seeded quick matches finish with a valid 7-point winner at every difficulty', () => {
   for (const difficulty of [0, 1, 2]) {
@@ -107,19 +133,20 @@ test('charging is bounded and cannot be started after a match finishes', () => {
   assert.ok(state.charge <= 1 && state.charge >= 0); state.phase = 'finished'; state.charging = false; beginCharge(state); assert.equal(state.charging, false);
 });
 
-test('approaching an incoming ball automatically jumps and tosses without movement assistance', () => {
-  const state = rallyState(); state.assist = false; state.touches = 0; state.lastActor = 2;
+test('a nearby incoming ball automatically jumps and tosses without moving the player', () => {
+  const state = rallyState(); state.touches = 0; state.lastActor = 2;
   Object.assign(state.actors[0], { z: 0, vz: 0 });
   Object.assign(state.ball, { x: 570, z: 280, vz: -180 });
   const events = run(state, .5);
   assert.ok(events.some(event => event.type === 'jump' && event.actor === 0), 'the toss needs its automatic jump');
   assert.ok(events.some(event => event.type === 'hit' && event.actor === 0 && event.kind === 'receive'), 'a nearby ball must be tossed automatically');
+  assert.equal(state.actors[0].x, 400); assert.equal(state.actors[0].y, 790);
   assert.equal(state.stats.spikes, 0);
   assert.ok(predictLanding(state.ball, 130).time > 1.3, 'the toss must leave time to reposition');
 });
 
 test('an attack set automatically jumps but never attacks without the player pressing spike', () => {
-  const state = rallyState(); state.assist = false;
+  const state = rallyState();
   Object.assign(state.actors[0], { z: 0, vz: 0 });
   Object.assign(state.ball, { z: 560, vz: -180 });
   const firstEvents = run(state, .2);
@@ -127,10 +154,11 @@ test('an attack set automatically jumps but never attacks without the player pre
   const events = [...firstEvents, ...run(state, 1.2)];
   assert.equal(events.filter(event => event.type === 'hit' && event.actor === 0).length, 0, 'the third touch must not be returned automatically');
   assert.equal(state.stats.spikes, 0);
+  assert.equal(state.actors[0].x, 400); assert.equal(state.actors[0].y, 790);
 });
 
 test('an early spike press is buffered through the automatic attack jump', () => {
-  const state = rallyState(); state.assist = false;
+  const state = rallyState();
   Object.assign(state.actors[0], { z: 0, vz: 0 });
   Object.assign(state.ball, { z: 540, vz: -120 });
   releaseSpike(state); const events = run(state, .7);
@@ -140,7 +168,7 @@ test('an early spike press is buffered through the automatic attack jump', () =>
 
 test('every original character gets at least half a second to choose a manual spike', () => {
   for (const character of ROSTER) {
-    const state = rallyState(); state.assist = false; state.actors[0].id = character.id;
+    const state = rallyState(); state.actors[0].id = character.id;
     Object.assign(state.actors[0], { z: 0, vz: 0 });
     Object.assign(state.ball, { z: 620, vz: -180, gravity: 620 });
     let readyFrames = 0;
@@ -151,7 +179,7 @@ test('every original character gets at least half a second to choose a manual sp
 });
 
 test('the block button jumps from the ground and blocks independently of spike', () => {
-  const state = rallyState(); state.assist = false; state.touches = 0; state.lastActor = 2;
+  const state = rallyState(); state.touches = 0; state.lastActor = 2;
   Object.assign(state.actors[0], { y: 690, z: 0, vz: 0 });
   Object.assign(state.ball, { y: 640, z: 365, vz: -100, vy: 140 });
   requestBlock(state); const events = run(state, .6);
@@ -176,7 +204,7 @@ test('a teammate toss does not cancel an attack the player is holding', () => {
 });
 
 test('intercepting the partner lane gives the actual receiver the next attack', () => {
-  const state = rallyState(); state.assist = false; state.touches = 0; state.lastActor = 2; state.handler = state.receiver = 1;
+  const state = rallyState(); state.touches = 0; state.lastActor = 2; state.handler = state.receiver = 1;
   Object.assign(state.actors[0], { z: 0, vz: 0 });
   Object.assign(state.ball, { z: 280, vz: -180 });
   const events = run(state, .4);

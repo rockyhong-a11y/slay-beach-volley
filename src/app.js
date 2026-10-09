@@ -9,10 +9,12 @@ for (const type of ['contextmenu', 'selectstart', 'dragstart']) document.addEven
   if (!(event.target instanceof Element) || !event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) event.preventDefault();
 }, { capture: true });
 const STORAGE_KEY = 'slay-beach-volley-v1';
-const defaults = { character: 'nova', partner: 'seraph', wins: 0, tourWins: 0, bestTraining: 0, settings: { assist: true, sfx: true, music: true, haptics: true, shake: true, difficulty: 1, muted: false } };
+const defaults = { character: 'nova', partner: 'seraph', wins: 0, tourWins: 0, bestTraining: 0, settings: { sfx: true, music: true, haptics: true, shake: true, difficulty: 1, muted: false } };
 let saved;
 try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch { saved = null; }
 saved = { ...defaults, ...saved, settings: { ...defaults.settings, ...saved?.settings } };
+const hadMovementAssist = 'assist' in saved.settings;
+delete saved.settings.assist;
 if (!ROSTER.some(character => character.id === saved.character)) saved.character = defaults.character;
 if (!ROSTER.some(character => character.id === saved.partner) || saved.partner === saved.character) saved.partner = ROSTER.find(character => character.id !== saved.character).id;
 for (const key of ['wins', 'tourWins', 'bestTraining']) saved[key] = Math.max(0, Number(saved[key]) || 0);
@@ -45,7 +47,7 @@ function opponents() {
   return chosen.map(character => character.id);
 }
 function makeGame(autoplay = false) {
-  return createMatch({ character: saved.character, partner: saved.partner, opponents: opponents(), difficulty: mode === 'tour' ? tourStage : Number(saved.settings.difficulty), autoplay, assist: saved.settings.assist, training: mode === 'training', seed: autoplay ? 82901 : Date.now() });
+  return createMatch({ character: saved.character, partner: saved.partner, opponents: opponents(), difficulty: mode === 'tour' ? tourStage : Number(saved.settings.difficulty), autoplay, training: mode === 'training', seed: autoplay ? 82901 : Date.now() });
 }
 function loadImage(id) {
   if (imagePromises[id]) return imagePromises[id];
@@ -261,9 +263,9 @@ $('#sound-toggle').addEventListener('click', () => {
   $('#sound-toggle').setAttribute('aria-label', audio.muted ? '소리 켜기' : '소리 끄기'); $('#sound-toggle').setAttribute('aria-pressed', String(audio.muted));
   audio.unlock().catch(() => {}); persist();
 });
-for (const key of ['assist', 'sfx', 'music', 'haptics', 'shake']) {
+for (const key of ['sfx', 'music', 'haptics', 'shake']) {
   const checkbox = $(`#${key}-setting`); checkbox.checked = saved.settings[key];
-  checkbox.addEventListener('change', () => { saved.settings[key] = checkbox.checked; if (game) game.assist = saved.settings.assist; if (renderer) renderer.allowShake = saved.settings.shake; persist(); audio.update(); });
+  checkbox.addEventListener('change', () => { saved.settings[key] = checkbox.checked; if (renderer) renderer.allowShake = saved.settings.shake; persist(); audio.update(); });
 }
 $('#difficulty-setting').value = saved.settings.difficulty;
 $('#difficulty-setting').addEventListener('change', event => { saved.settings.difficulty = Number(event.target.value); persist(); });
@@ -335,5 +337,6 @@ async function initialize() {
     $('#retry-load').addEventListener('click', () => location.reload());
   }
 }
+if (hadMovementAssist) persist();
 initialize();
 if ('serviceWorker' in navigator && !['localhost', '127.0.0.1'].includes(location.hostname)) navigator.serviceWorker.register(new URL('../sw.js', import.meta.url)).catch(() => {});

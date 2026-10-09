@@ -113,9 +113,11 @@
   },
   "checked": [
     "10 original characters",
+    "manual movement stops when input is released",
+    "legacy movement assistance removed without losing records",
     "keyboard movement and block",
     "800 ms touch charge without selection or popup",
-    "automatic jump and real manual spike",
+    "automatic jump and real manual spike after manual positioning",
     "charge button",
     "joystick pointer capture",
     "pause and resume",
