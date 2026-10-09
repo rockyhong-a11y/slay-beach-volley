@@ -93,7 +93,7 @@ test('seeded quick matches finish with a valid 7-point winner at every difficult
 test('all ten characters can jump and score manual spikes in 60-second practice', () => {
   for (const character of ROSTER) {
     const state = createMatch({ character: character.id, partner: character.id === 'seraph' ? 'nova' : 'seraph', training: true, seed: 42 });
-    run(state, 61, true); assert.equal(state.phase, 'finished', character.id); assert.equal(state.remaining, 0); assert.ok(state.stats.spikes > 0, `${character.id} needs a real spike opportunity`);
+    run(state, 61, true); assert.equal(state.phase, 'finished', character.id); assert.equal(state.remaining, 0); assert.ok(state.stats.spikes > 0, `${character.id} needs a real spike opportunity`); assert.ok(state.stats.longestRally > 0, `${character.id} needs a recorded practice rally`);
   }
 });
 test('active spike timing makes perfect contacts and a match can be replayed independently', () => {

@@ -147,6 +147,7 @@ function touch(state, actor, { spike = false, manual = false } = {}) {
   state.touches++;
   state.lastActor = actor.index;
   state.rally++;
+  state.stats.longestRally = Math.max(state.stats.longestRally, state.rally);
   actor.cooldown = 0.48;
   actor.pose = 1;
   actor.poseTime = 0.42;

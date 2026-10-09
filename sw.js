@@ -1,4 +1,4 @@
-const VERSION = 'slay-beach-volley-v1';
+const VERSION = 'slay-beach-volley-v2';
 const ASSETS = [];
 const SHELL = ['./', './index.html', './style.css', './src/app.js', './src/roster.js', './src/engine.js', './src/render.js', './src/audio.js', './src/sprites.json', './favicon.svg', './manifest.webmanifest'];
 self.addEventListener('install', event => { event.waitUntil(caches.open(VERSION).then(cache => cache.addAll([...SHELL, ...ASSETS]))); self.skipWaiting(); });
