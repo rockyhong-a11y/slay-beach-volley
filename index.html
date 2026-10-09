@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#116f66" />
-    <meta name="description" content="모래 위에서, 한 방 더. SLAY 원본 선수 10명과 즐기는 모바일 2대2 비치발리볼. 점프하고, 타이밍을 맞추고, 스파이크!" />
+    <meta name="description" content="모래 위에서, 한 방 더. SLAY 원본 선수 10명과 즐기는 모바일 2대2 비치발리볼. 토스와 점프는 자동, 스파이크와 블로킹은 직접!" />
     <meta property="og:title" content="SLAY Beach Volley" />
     <meta property="og:description" content="10명의 선수. 하나의 해변. 당신의 다음 스파이크." />
     <title>SLAY Beach Volley | 모래 위에서, 한 방 더</title>
@@ -14,7 +14,7 @@
     <link rel="preload" href="./assets/fonts/DoHyeon-subset.ttf" as="font" type="font/ttf" crossorigin />
     <link rel="preload" href="./assets/portraits/raven.webp" as="image" fetchpriority="high" />
     <link rel="preload" href="./assets/portraits/valkyrie.webp" as="image" fetchpriority="high" />
-    <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="./style.css?v=3" />
   </head>
   <body>
     <div class="app-shell">
@@ -43,7 +43,7 @@
             <button class="mode-button" data-mode="training" aria-pressed="false"><img width="24" height="24" src="./assets/icons/game-controller.svg" alt="" /><span>타이밍 연습<small>60초 동안 스파이크!</small></span><img width="24" height="24" class="mode-check" src="./assets/icons/check.svg" alt="" /></button>
           </div>
           <button class="primary-button desktop-start" id="desktop-start"><span>비치로 출발</span><img width="24" height="24" src="./assets/icons/arrow-right.svg" alt="" /></button>
-          <div class="keyboard-guide"><span><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></span><p>이동 <b>SPACE</b> 점프<br /><b>J</b> 스파이크</p></div>
+          <div class="keyboard-guide"><span><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></span><p>이동 <b>SPACE / K</b> 블로킹<br /><b>J</b> 스파이크 · 점프는 자동</p></div>
           <div class="personal-record"><img width="24" height="24" src="./assets/icons/trophy.svg" alt="" /><div><span>나의 비치 기록</span><strong id="wins-label">첫 승을 기다리는 중</strong></div></div>
         </section>
 
@@ -55,7 +55,7 @@
               <div class="score-numbers"><strong id="our-score">0</strong><span>:</span><strong id="their-score">0</strong></div>
               <div class="score-team theirs"><span id="opponent-name">RAVEN & VALKYRIE</span><small>RIVAL TEAM</small></div>
             </div>
-            <canvas id="game-canvas" width="480" height="580" tabindex="0" aria-label="2대2 비치발리볼 코트. 방향키 또는 W A S D로 이동, 스페이스로 점프, J로 스파이크."></canvas>
+            <canvas id="game-canvas" width="480" height="580" tabindex="0" aria-label="2대2 비치발리볼 코트. 방향키 또는 W A S D로 이동. 토스와 공격 점프는 자동. 스페이스 또는 K로 블로킹, J로 스파이크."></canvas>
             <div class="match-label" id="match-label"><span class="preview-dot"></span>몸 푸는 중. 준비되면 시작!</div>
             <div class="game-callout" id="game-callout" aria-hidden="true"><strong>PERFECT!</strong><small>완벽한 타이밍</small></div>
             <div class="countdown" id="countdown" aria-hidden="true"></div>
@@ -70,9 +70,9 @@
           </div>
           <div class="game-controls" id="game-controls" hidden>
             <div class="joystick" id="joystick" role="group" aria-label="이동 스틱. 방향키로도 이동할 수 있습니다."><span class="joystick-cross"></span><span class="joystick-thumb" id="joystick-thumb"></span><small>이동</small></div>
-            <div class="control-tip" id="control-tip">공 아래로 이동<br /><strong>점프 후 스파이크!</strong></div>
+            <div class="control-tip" id="control-tip">공 근처로 이동<br /><strong>가까우면 자동 토스!</strong></div>
             <div class="action-buttons">
-              <button class="action jump" id="jump-button" aria-label="점프"><img width="24" height="24" src="./assets/icons/arrow-up.svg" alt="" /><span>점프</span><small>SPACE</small></button>
+              <button class="action block" id="block-button" aria-label="블로킹. 네트 앞에서 눌러 상대 공격을 막습니다."><img width="24" height="24" src="./assets/icons/arrow-up.svg" alt="" /><span>블로킹</span><small>SPACE / K</small></button>
               <button class="action spike" id="spike-button" aria-label="스파이크. 길게 눌렀다 놓으면 더 강하게 공격합니다."><img width="24" height="24" src="./assets/icons/lightning.svg" alt="" /><span>스파이크</span><small>HOLD / J</small></button>
             </div>
           </div>
@@ -93,15 +93,15 @@
 
     <dialog id="help-dialog" class="modal">
       <button class="modal-close icon-button" data-close aria-label="닫기"><img width="24" height="24" src="./assets/icons/x.svg" alt="" /></button>
-      <span class="eyebrow">LET’S PLAY</span><h2>가볍게, 한 게임!</h2><p>파트너가 토스하면, 공 아래로 들어가<br />점프하고 타이밍에 맞춰 스파이크!</p>
-      <div class="help-steps"><div><img width="24" height="24" src="./assets/icons/game-controller.svg" alt="" /><strong>공 아래로 이동</strong><p>스틱 또는 방향키 · WASD<br />자동 이동 보조가 도와줘요.</p></div><div><img width="24" height="24" src="./assets/icons/arrow-up.svg" alt="" /><strong>높이 점프</strong><p>점프 버튼 또는 SPACE<br />토스가 내려올 때 뛰어보세요.</p></div><div><img width="24" height="24" src="./assets/icons/lightning.svg" alt="" /><strong>스파이크!</strong><p>스파이크 버튼 또는 J<br />길게 눌렀다 놓으면 강타!</p></div></div>
+      <span class="eyebrow">LET’S PLAY</span><h2>가볍게, 한 게임!</h2><p>공 근처에 가면 자동 토스!<br />공격 점프도 자동, 타이밍만 골라 스파이크!</p>
+      <div class="help-steps"><div><img width="24" height="24" src="./assets/icons/game-controller.svg" alt="" /><strong>가까이 가면 자동 토스</strong><p>스틱 또는 방향키 · WASD로 이동.<br />공을 높게 띄워 여유 있게 이어줘요.</p></div><div><img width="24" height="24" src="./assets/icons/lightning.svg" alt="" /><strong>점프는 자동, 스파이크는 직접!</strong><p>공 아래에 있으면 자동으로 뛰어요.<br />빛나는 스파이크 버튼 또는 J!<br />길게 눌렀다 놓으면 더 강하게!</p></div><div><img width="24" height="24" src="./assets/icons/arrow-up.svg" alt="" /><strong>블로킹으로 받아치기</strong><p>네트 앞에서 블로킹 버튼.<br />키보드는 SPACE 또는 K.</p></div></div>
       <div class="rules-note">2대2, 최대 3회 터치, 같은 선수의 연속 터치는 금지. 상대 코트에 공을 떨어뜨리면 1점, 네트에 걸리거나 아웃이면 상대 점수. 빠른 경기는 7점 선승입니다.</div><button class="primary-button" data-close>좋아, 해볼게요 <img width="24" height="24" src="./assets/icons/arrow-right.svg" alt="" /></button>
     </dialog>
 
     <dialog id="settings-dialog" class="modal">
       <button class="modal-close icon-button" data-close aria-label="닫기"><img width="24" height="24" src="./assets/icons/x.svg" alt="" /></button>
       <span class="eyebrow">YOUR GAME, YOUR WAY</span><h2>게임 설정</h2>
-      <label class="setting-row"><span><strong>이동·리시브 보조</strong><small>공 아래로 이동하고 낮은 공을 받아줘요</small></span><input id="assist-setting" type="checkbox" checked /></label>
+      <label class="setting-row"><span><strong>이동 보조</strong><small>공 아래로 이동을 도와줘요 · 토스와 점프는 항상 자동</small></span><input id="assist-setting" type="checkbox" checked /></label>
       <label class="setting-row"><span><strong>효과음</strong><small>스파이크, 점프, 모래 소리</small></span><input id="sfx-setting" type="checkbox" checked /></label>
       <label class="setting-row"><span><strong>해변 배경음</strong><small>파도와 가벼운 마림바 리듬</small></span><input id="music-setting" type="checkbox" checked /></label>
       <label class="setting-row"><span><strong>타격 진동</strong><small>진동을 지원하는 모바일에서 작동해요</small></span><input id="haptics-setting" type="checkbox" checked /></label>
@@ -122,6 +122,6 @@
     <div class="toast" id="toast" role="status"></div>
     <div class="sr-only" id="announcer" role="status" aria-live="polite"></div>
     <noscript>이 게임은 JavaScript가 필요합니다. 브라우저에서 JavaScript를 활성화해주세요.</noscript>
-    <script type="module" src="./src/app.js"></script>
+    <script type="module" src="./src/app.js?v=3"></script>
   </body>
 </html>

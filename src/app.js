@@ -1,9 +1,13 @@
 import { ROSTER, COURTS, characterFor } from './roster.js';
-import { createMatch, step, beginCharge, releaseSpike, requestJump, drainEvents } from './engine.js';
+import { createMatch, step, beginCharge, releaseSpike, requestBlock, playerCue, drainEvents } from './engine.js';
 import { Renderer, drawPortrait } from './render.js';
 import { GameAudio } from './audio.js';
 
 const $ = selector => document.querySelector(selector);
+// Native editing stays available; holding any other part of the game has no callout.
+for (const type of ['contextmenu', 'selectstart', 'dragstart']) document.addEventListener(type, event => {
+  if (!(event.target instanceof Element) || !event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) event.preventDefault();
+}, { capture: true });
 const STORAGE_KEY = 'slay-beach-volley-v1';
 const defaults = { character: 'nova', partner: 'seraph', wins: 0, tourWins: 0, bestTraining: 0, settings: { assist: true, sfx: true, music: true, haptics: true, shake: true, difficulty: 1, muted: false } };
 let saved;
@@ -103,7 +107,7 @@ function setCourt(index) {
 function clearControls() {
   keys.clear(); input.x = input.y = stickX = stickY = 0; stickPointer = spikePointer = null;
   $('#joystick-thumb').style.transform = ''; document.querySelectorAll('.action').forEach(button => button.classList.remove('held'));
-  if (game) { game.charging = false; game.charge = 0; game.swingBuffer = game.jumpBuffer = 0; }
+  if (game) { game.charging = false; game.charge = 0; game.swingBuffer = game.blockBuffer = 0; }
 }
 function openDialog(dialog) {
   if (dialog.open) return;
@@ -157,7 +161,7 @@ function finish() {
     if (tourComplete) saved.tourWins++;
     $('#result-eyebrow').textContent = tourComplete ? 'BEACH TOUR CHAMPION' : won ? 'WHAT A GAME!' : 'ONE MORE RALLY?';
     $('#result-title').textContent = tourComplete ? '세 해변을 모두 정복!' : won ? '해변의 승자는, 당신!' : '다음 한 방은, 당신 차례.';
-    $('#result-message').textContent = tourComplete ? '코랄 비치부터 문라이트 베이까지. 완벽한 투어!' : won ? `${COURTS[courtIndex].name}에서 멋진 승리였어요.` : '공 아래로 먼저 이동하고, 토스가 내려올 때 점프해보세요.';
+    $('#result-message').textContent = tourComplete ? '코랄 비치부터 문라이트 베이까지. 완벽한 투어!' : won ? `${COURTS[courtIndex].name}에서 멋진 승리였어요.` : '공 근처로 이동하면 자동 토스! 자동으로 뛰어오를 때 스파이크를 눌러보세요.';
     $('#result-score').innerHTML = `${game.score[0]} <span>:</span> ${game.score[1]}`;
     $('#result-play').innerHTML = `${mode === 'tour' && won && !tourComplete ? '다음 해변으로' : won ? '한 게임 더' : '다시 도전'} <img width="24" height="24" src="./assets/icons/arrow-right.svg" alt="" />`;
   }
@@ -174,7 +178,7 @@ function handleEvents(events) {
       if (event.manual && (event.kind === 'spike' || event.kind === 'block')) {
         showCallout(event.kind === 'block' ? 'BLOCK!' : event.perfect ? 'PERFECT!' : 'SPIKE!', event.kind === 'block' ? '네트 앞에서 완벽한 수비!' : event.perfect ? '완벽한 타이밍!' : characterFor(saved.character).skill);
         if (saved.settings.haptics && navigator.vibrate) navigator.vibrate(event.perfect ? [18, 15, 25] : 20);
-      } else if ((event.kind === 'set' || event.kind === 'receive') && event.actor === 1 && game.handler === 0) showCallout('YOUR TURN!', '점프하고 스파이크!', 750);
+      } else if ((event.kind === 'set' || event.kind === 'receive') && event.actor === 1 && game.handler === 0) showCallout('YOUR TURN!', '점프는 자동 · 스파이크는 직접!', 1000);
     } else if (event.type === 'point') {
       showCallout(event.team === 0 ? 'POINT!' : event.reason === 'net' ? 'NET!' : event.reason === 'out' ? 'OUT!' : 'NEXT RALLY', event.team === 0 ? '우리 팀 득점!' : event.reason === 'net' ? '공을 조금 더 높게!' : event.reason === 'out' ? '코트 밖으로 나갔어요' : '다음 공을 준비해요', 1150);
       $('#announcer').textContent = `우리 팀 ${game.score[0]}점, 상대 팀 ${game.score[1]}점.`;
@@ -196,7 +200,12 @@ function updateHUD() {
   $('#match-label').classList.toggle('play-label', playing);
   $('#power-meter').hidden = !playing || !game.charging;
   $('#power-fill').style.width = `${game.charge * 100}%`;
-  $('#control-tip').innerHTML = game.charging ? '공이 손에 닿을 때<br /><strong>버튼을 놓으세요!</strong>' : game.touches >= 1 && game.handler === 0 ? '토스가 옵니다<br /><strong>점프 준비!</strong>' : game.possession === 0 ? '공 아래로 이동<br /><strong>점프 후 스파이크!</strong>' : '상대의 공격<br /><strong>리시브 준비!</strong>';
+  const cue = playing ? playerCue(game) : 'idle';
+  $('#spike-button').classList.toggle('ready', cue === 'spike');
+  $('#block-button').classList.toggle('ready', cue === 'block');
+  $('#spike-button small').textContent = game.charging ? 'RELEASE / J' : cue === 'spike' ? 'NOW! / J' : 'HOLD / J';
+  $('#control-tip').innerHTML = game.charging ? '자동으로 뛰어올라요<br /><strong>놓으면 스파이크!</strong>' : cue === 'spike' ? '지금이 공격 타이밍!<br /><strong>스파이크를 누르세요!</strong>' : cue === 'approach' ? '공 아래로 이동<br /><strong>점프는 자동이에요!</strong>' : cue === 'block' || cue === 'blocking' ? '네트 앞에서 수비<br /><strong>블로킹을 누르세요!</strong>' : '공 근처로 이동<br /><strong>가까우면 자동 토스!</strong>';
+  document.body.dataset.cue = cue;
   document.body.dataset.phase = game.phase;
 }
 
@@ -284,28 +293,27 @@ joystick.addEventListener('pointerdown', event => { if (!playing || paused) retu
 joystick.addEventListener('pointermove', event => { if (event.pointerId === stickPointer) updateStick(event); });
 function resetStick(event) { if (event.pointerId !== stickPointer) return; stickPointer = null; stickX = stickY = 0; thumb.style.transform = ''; }
 joystick.addEventListener('pointerup', resetStick); joystick.addEventListener('pointercancel', resetStick); joystick.addEventListener('lostpointercapture', resetStick);
-$('#jump-button').addEventListener('pointerdown', event => { event.preventDefault(); if (!playing || paused) return; requestJump(game); $('#jump-button').classList.add('held'); $('#jump-button').setPointerCapture(event.pointerId); });
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) $('#jump-button').addEventListener(name, () => $('#jump-button').classList.remove('held'));
-$('#jump-button').addEventListener('click', event => { if (event.detail === 0 && playing && !paused) requestJump(game); });
+$('#block-button').addEventListener('pointerdown', event => { event.preventDefault(); if (!playing || paused) return; requestBlock(game); $('#block-button').classList.add('held'); $('#block-button').setPointerCapture(event.pointerId); });
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) $('#block-button').addEventListener(name, () => $('#block-button').classList.remove('held'));
+$('#block-button').addEventListener('click', event => { if (event.detail === 0 && playing && !paused) requestBlock(game); });
 $('#spike-button').addEventListener('pointerdown', event => { event.preventDefault(); if (!playing || paused) return; spikePointer = event.pointerId; beginCharge(game); $('#spike-button').classList.add('held'); $('#spike-button').setPointerCapture(event.pointerId); });
 $('#spike-button').addEventListener('pointerup', event => { if (event.pointerId !== spikePointer) return; spikePointer = null; if (!paused) releaseSpike(game); $('#spike-button').classList.remove('held'); });
 for (const name of ['pointercancel', 'lostpointercapture']) $('#spike-button').addEventListener(name, () => { if (spikePointer !== null) { spikePointer = null; game.charging = false; game.charge = 0; } $('#spike-button').classList.remove('held'); });
 $('#spike-button').addEventListener('click', event => { if (event.detail === 0 && playing && !paused) { beginCharge(game); releaseSpike(game); } });
-for (const element of [joystick, $('#jump-button'), $('#spike-button')]) element.addEventListener('contextmenu', event => event.preventDefault());
 
-const gameKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyJ'];
+const gameKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyK', 'KeyJ'];
 document.addEventListener('keydown', event => {
   if (!playing || dialogs.some(dialog => dialog.open)) return;
   if (event.code === 'Escape') { event.preventDefault(); openDialog($('#pause-dialog')); return; }
   if (!gameKeys.includes(event.code)) return;
   event.preventDefault(); keys.add(event.code);
   if (event.repeat) return;
-  if (event.code === 'Space') { requestJump(game); $('#jump-button').classList.add('held'); }
+  if (event.code === 'Space' || event.code === 'KeyK') { requestBlock(game); $('#block-button').classList.add('held'); }
   if (event.code === 'KeyJ') { beginCharge(game); $('#spike-button').classList.add('held'); }
 });
 document.addEventListener('keyup', event => {
   keys.delete(event.code);
-  if (event.code === 'Space') $('#jump-button').classList.remove('held');
+  if (event.code === 'Space' || event.code === 'KeyK') $('#block-button').classList.remove('held');
   if (event.code === 'KeyJ') { if (playing && !paused) releaseSpike(game); $('#spike-button').classList.remove('held'); }
 });
 window.addEventListener('blur', () => { clearControls(); if (playing && game.phase !== 'finished' && !dialogs.some(dialog => dialog.open)) openDialog($('#pause-dialog')); });

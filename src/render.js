@@ -1,4 +1,5 @@
 import { COURTS, characterFor } from './roster.js';
+import { playerCue, predictLanding } from './engine.js';
 
 const TAU = Math.PI * 2;
 export class Renderer {
@@ -32,6 +33,7 @@ export class Renderer {
     this.bctx = this.background.getContext('2d');
     this.bctx.scale(this.dpr, this.dpr);
     this.drawBackground(this.bctx);
+    if (this.state) this.draw(this.state, this.lastTime);
   }
   setCourt(index) {
     this.courtIndex = index;
@@ -124,14 +126,16 @@ export class Renderer {
     for(const p of [left,right]){ctx.strokeStyle='#4d8b80';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(p.x,p.y+6);ctx.lineTo(p.x,topLeft.y-9);ctx.stroke();ctx.strokeStyle='#82b7a1';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(p.x-1,p.y+6);ctx.lineTo(p.x-1,topLeft.y-9);ctx.stroke();this.ellipse(ctx,p.x,topLeft.y-9,3.2,1.9,'#fff1d6');}
     ctx.fillStyle='#e4ecda';ctx.beginPath();ctx.roundRect(this.w*.5-21,topLeft.y-3,42,10,2);ctx.fill();ctx.fillStyle='#4a8175';ctx.font='700 6px Outfit';ctx.textAlign='center';ctx.fillText('SLAY VOLLEY',this.w*.5,topLeft.y+4);ctx.restore();
   }
-  ball(ctx,ball){
+  ball(ctx,ball,ready=false){
     const p=this.project(ball.x,ball.y,ball.z),r=Math.max(5.5,this.w*.017)*p.scale;
     ctx.save();ctx.translate(p.x,p.y);ctx.rotate(ball.spin);
     this.ellipse(ctx,0,0,r+1,r+1,'#a4866255');this.ellipse(ctx,0,0,r,r,'#fff6d7');
     ctx.save();ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.clip();
     ctx.fillStyle=ball.hot>.3?'#ed885b':'#e6be60';ctx.beginPath();ctx.moveTo(-r,-r);ctx.bezierCurveTo(r,-r,r,r,-r,r);ctx.lineTo(-r*.3,r*.2);ctx.quadraticCurveTo(r*.4,-r*.6,-r,-r);ctx.fill();
     ctx.strokeStyle='#689d95';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(-r,-r*.2);ctx.bezierCurveTo(r*.9,-r*.9,r*.7,r*.9,0,r);ctx.stroke();ctx.restore();
-    this.ellipse(ctx,-r*.35,-r*.35,r*.27,r*.18,'#fffdefd9');ctx.restore();
+    this.ellipse(ctx,-r*.35,-r*.35,r*.27,r*.18,'#fffdefd9');
+    if(ready){ctx.strokeStyle='#fff8ce';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(0,0,r+5,0,TAU);ctx.stroke();}
+    ctx.restore();
   }
   burst(event){
     const p=this.project(event.x,event.y,event.z||0);
@@ -144,21 +148,28 @@ export class Renderer {
     }else if(event.type==='net')this.netWobble=3;
   }
   draw(state,time){
+    this.state=state;
     const ctx=this.ctx,w=this.w,h=this.h,dt=Math.min(.04,Math.max(0,time-this.lastTime));this.lastTime=time;
     ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.fillStyle=COURTS[this.courtIndex].sand;ctx.fillRect(0,0,w,h);ctx.save();
     if(this.shake>.05){ctx.translate(Math.sin(time*160)*this.shake,Math.cos(time*143)*this.shake*.5);this.shake*=Math.exp(-dt*17);}
     ctx.drawImage(this.background,0,0,w,h);
     if(!this.reducedMotion){ctx.strokeStyle=COURTS[this.courtIndex].night?'#b5cbd249':'#eef9e67b';ctx.lineWidth=1.4;for(let i=0;i<4;i++){ctx.beginPath();const y=h*(.258+i*.018)+Math.sin(time*.9+i)*2;for(let x=0;x<=w;x+=12){const yy=y+Math.sin(x*.03+time*.6+i)*2;x===0?ctx.moveTo(x,yy):ctx.lineTo(x,yy);}ctx.stroke();}}
+    const cue=playerCue(state);
     if(state.phase==='rally'){
       const ground=this.project(state.ball.x,state.ball.y);const fade=Math.max(.1,.32-state.ball.z*.0003);this.ellipse(ctx,ground.x,ground.y,7+state.ball.z*.005,2.5+state.ball.z*.0015,`rgba(86,76,53,${fade})`);
       // The descending-ball marker helps judge depth on a portrait screen.
       if(state.possession===0&&state.ball.vz<0){ctx.save();ctx.strokeStyle='#438c7180';ctx.setLineDash([3,3]);ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(ground.x,ground.y,15,5,0,0,TAU);ctx.stroke();ctx.restore();}
+      if(cue==='approach'||cue==='spike'){
+        const target=predictLanding(state.ball,350),p=this.project(target.x,target.y);
+        this.ellipse(ctx,p.x,p.y,28,9,cue==='spike'?'#d8ae5b55':'#3989692c');
+        ctx.strokeStyle=cue==='spike'?'#bc8530':'#2c8568';ctx.lineWidth=1.6;ctx.beginPath();ctx.ellipse(p.x,p.y,28,9,0,0,TAU);ctx.stroke();
+      }
     }
     for(const actor of state.actors){const p=this.project(actor.x,actor.y);this.ellipse(ctx,p.x,p.y+2,Math.max(8,w*.038)*(1-actor.z*.001),3.5,p.scale>1?'#755d4535':'#755d452c');}
     if(state.phase==='rally'&&!this.reducedMotion){const p=this.project(state.ball.x,state.ball.y,state.ball.z);this.trail.push({...p,hot:state.ball.hot});if(this.trail.length>12)this.trail.shift();}
     else this.trail.length=0;
     if(this.trail.length>1){for(let i=1;i<this.trail.length;i++){ctx.beginPath();ctx.moveTo(this.trail[i-1].x,this.trail[i-1].y);ctx.lineTo(this.trail[i].x,this.trail[i].y);ctx.strokeStyle=this.trail[i].hot>.3?`rgba(238,125,74,${i/this.trail.length*.7})`:`rgba(255,247,207,${i/this.trail.length*.4})`;ctx.lineWidth=(this.trail[i].hot>.3?5:2)*i/this.trail.length;ctx.lineCap='round';ctx.stroke();}}
-    const layers=state.actors.map(actor=>({y:actor.y,draw:()=>this.actor(ctx,actor,time,state)}));layers.push({y:600,draw:()=>this.net(ctx,time)});layers.push({y:state.ball.y,draw:()=>this.ball(ctx,state.ball)});layers.sort((a,b)=>a.y-b.y).forEach(layer=>layer.draw());
+    const layers=state.actors.map(actor=>({y:actor.y,draw:()=>this.actor(ctx,actor,time,state)}));layers.push({y:600,draw:()=>this.net(ctx,time)});layers.push({y:state.ball.y,draw:()=>this.ball(ctx,state.ball,cue==='spike')});layers.sort((a,b)=>a.y-b.y).forEach(layer=>layer.draw());
     this.netWobble*=Math.exp(-dt*8);
     this.rings=this.rings.filter(ring=>{ring.age+=dt;if(ring.age>ring.life)return false;const q=ring.age/ring.life;ctx.strokeStyle=ring.color;ctx.globalAlpha=(1-q)*.9;ctx.lineWidth=ring.strong?3*(1-q)+1:1.8;ctx.beginPath();ctx.arc(ring.x,ring.y,(ring.strong?8:4)+q*(ring.strong?31:13),0,TAU);ctx.stroke();ctx.globalAlpha=1;return true;});
     this.particles=this.particles.filter(p=>{p.age+=dt;if(p.age>p.life)return false;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=90*dt;ctx.globalAlpha=1-p.age/p.life;this.ellipse(ctx,p.x,p.y,p.size,p.size*.75,p.color);ctx.globalAlpha=1;return true;});

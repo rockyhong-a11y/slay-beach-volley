@@ -45,9 +45,77 @@
       "startVisible": true
     }
   ],
+  "longPressGuards": {
+    "ui": [
+      {
+        "selector": "#desktop-start",
+        "unselectable": true,
+        "guarded": true
+      },
+      {
+        "selector": ".brand",
+        "unselectable": true,
+        "guarded": true
+      },
+      {
+        "selector": "#help-button img",
+        "unselectable": true,
+        "guarded": true
+      },
+      {
+        "selector": ".roster-item small",
+        "unselectable": true,
+        "guarded": true
+      },
+      {
+        "selector": ".roster-item img",
+        "unselectable": true,
+        "guarded": true
+      },
+      {
+        "selector": "#game-canvas",
+        "unselectable": true,
+        "guarded": true
+      },
+      {
+        "selector": "#block-button span",
+        "unselectable": true,
+        "guarded": true
+      },
+      {
+        "selector": "#spike-button span",
+        "unselectable": true,
+        "guarded": true
+      }
+    ],
+    "editors": [
+      {
+        "tag": "input",
+        "editable": true,
+        "nativeMenuAvailable": true
+      },
+      {
+        "tag": "textarea",
+        "editable": true,
+        "nativeMenuAvailable": true
+      },
+      {
+        "tag": "select",
+        "editable": true,
+        "nativeMenuAvailable": true
+      },
+      {
+        "tag": "div",
+        "editable": true,
+        "nativeMenuAvailable": true
+      }
+    ]
+  },
   "checked": [
     "10 original characters",
-    "keyboard movement and jump",
+    "keyboard movement and block",
+    "800 ms touch charge without selection or popup",
+    "automatic jump and real manual spike",
     "charge button",
     "joystick pointer capture",
     "pause and resume",
