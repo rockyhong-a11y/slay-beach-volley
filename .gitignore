@@ -9,3 +9,5 @@ artifacts/*.report.html
 artifacts/source-game.js
 assets/sprites/*.png
 assets/fonts/DoHyeon-Regular.ttf
+artifacts/court-*.png
+tools/__pycache__/

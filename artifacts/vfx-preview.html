@@ -1,0 +1,27 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Volleyball contact effects</title>
+<style>*{box-sizing:border-box;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}body{margin:0;background:#172723;color:#fff9e9;font:15px system-ui,sans-serif;padding:28px}h1{font-size:25px;margin:0 0 8px}p{color:#adc5ba;margin:0 0 20px}.grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.card{background:#22392f;border:1px solid #526253;border-radius:12px;overflow:hidden}canvas{width:100%;height:240px;display:block}h2{font-size:15px;margin:12px 14px 5px}.caption{font-size:12px;color:#adc5ba;padding:0 14px 14px}.row{font-size:12px;letter-spacing:.06em;color:#e0ca9b;margin:22px 0 10px}@media(max-width:700px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>
+<h1>SLAY VOLLEY · CONTACT EFFECTS</h1><p>각 접촉은 다른 실루엣과 색으로 표시. 공은 항상 이펙트 앞에 표시.</p>
+<div class="row">65 ms · CONTACT / IMPACT</div><div class="grid" id="contact"></div>
+<div class="row">220 ms · RELEASE / DIRECTION</div><div class="grid" id="release"></div>
+<div class="row">65 ms · REDUCED MOTION</div><div class="grid" id="reduced"></div>
+<script type="module">
+import {ImpactEffects} from '../src/impact-effects.js';
+const kinds=[['receive','토스 / 리시브','상향 초승달 + 부드러운 물결'],['set','세트 토스','골드·민트 헬릭스'],['spike','스파이크','방향성 타격 별 + 속도선'],['block','블로킹','육각 방패 + 반격 파편'],['spike','퍼펙트 스파이크','강한 타격 별 + 짧은 국부 링']];
+for(const [row,age,reducedMotion] of [['contact',.065,false],['release',.22,false],['reduced',.065,true]]){
+  for(let i=0;i<kinds.length;i++){
+    const [kind,title,caption]=kinds[i],card=document.createElement('div');card.className='card';card.innerHTML=`<canvas width="280" height="240"></canvas><h2>${title}</h2><div class="caption">${caption}</div>`;document.getElementById(row).append(card);
+    const canvas=card.querySelector('canvas'),ctx=canvas.getContext('2d'),width=280,height=240,anchor={x:500,y:790,z:260};
+    const project=(x,y,z=0)=>({x:width*.5+(x-anchor.x)*.29,y:height*.49+(y-anchor.y)*.2-(z-anchor.z)*.15,scale:1});
+    const bg=ctx.createLinearGradient(0,0,0,height);bg.addColorStop(0,'#c8b58c');bg.addColorStop(1,'#e9cfa0');ctx.fillStyle=bg;ctx.fillRect(0,0,width,height);
+    ctx.strokeStyle='#fff9dc60';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(25,0);ctx.lineTo(0,height);ctx.moveTo(width-25,0);ctx.lineTo(width,height);ctx.stroke();
+    for(let k=0;k<35;k++){ctx.fillStyle='#826f4b30';ctx.fillRect(k*73%width,k*41%height,1.2,.8)}
+    const effects=new ImpactEffects({reducedMotion});effects.burst({type:'hit',kind,...anchor,vx:310,vy:-720,vz:90,perfect:i===4});
+    const points=Array.from({length:15},(_,k)=>({...anchor,x:anchor.x+k*10,y:anchor.y-k*23,z:anchor.z+k*3,hot:kind==='spike'||kind==='block'?1:0}));
+    if(row==='release'&&!reducedMotion)effects.drawTrail(ctx,points,{project,width,reducedMotion});
+    effects.draw(ctx,age,{project,width,height,reducedMotion});
+    const ball=project(anchor.x,anchor.y,anchor.z);ctx.fillStyle='#fff5d3';ctx.strokeStyle='#665b47';ctx.lineWidth=1.3;ctx.beginPath();ctx.arc(ball.x,ball.y,6.4,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.strokeStyle='#369b8e';ctx.lineWidth=1.6;ctx.beginPath();ctx.arc(ball.x-2,ball.y,5.5,-1.1,1.1);ctx.stroke();
+  }
+}
+for(const type of ['contextmenu','selectstart','dragstart'])document.addEventListener(type,event=>event.preventDefault());
+document.body.dataset.ready='true';
+</script></html>

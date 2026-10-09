@@ -1,4 +1,5 @@
 {
+  "sampledAudioDecoded": 4,
   "errors": [],
   "responses": [],
   "layouts": [
@@ -112,6 +113,9 @@
     ]
   },
   "checked": [
+    "four recorded match-sound files decoded in the normal game",
+    "three physically lit Blender stadiums and calibrated 2D scene",
+    "ordinary mobile button long press without native popup",
     "10 original characters",
     "manual movement stops when input is released",
     "legacy movement assistance removed without losing records",

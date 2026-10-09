@@ -60,6 +60,8 @@ test('an airborne, well timed manual spike gets a perfect and hit stop', () => {
   const state = rallyState(); state.charge = .6; releaseSpike(state); step(state, frame);
   const hit = drainEvents(state).find(event => event.type === 'hit' && event.manual);
   assert.equal(hit.kind, 'spike'); assert.equal(hit.perfect, true); assert.equal(state.stats.spikes, 1); assert.equal(state.stats.perfects, 1); assert.ok(state.freeze > 0); assert.equal(state.possession, 1);
+  assert.ok(hit.vy < 0, 'the contact effect follows the attack into the opponent court');
+  assert.ok([hit.vx, hit.vy, hit.vz].every(Number.isFinite));
 });
 test('a missed receive can be rescued by a manual swing', () => {
   const state = rallyState(); state.actors[0].miss = true; releaseSpike(state); step(state, frame);

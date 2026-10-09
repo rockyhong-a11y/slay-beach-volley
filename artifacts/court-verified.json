@@ -1,0 +1,83 @@
+{
+  "method": "Projection compared with independent Blender world_to_camera_view goldens; WebP dimensions/alpha inspected using Pillow",
+  "maxProjectionErrorPixels": 0.00010554079057101262,
+  "calibrationPoints": 8,
+  "mobileAssetsTotalBytes": 413898,
+  "assets": [
+    {
+      "name": "coral.webp",
+      "bytes": 97116,
+      "dimensions": [
+        960,
+        1440
+      ],
+      "mode": "RGB"
+    },
+    {
+      "name": "coral-net.webp",
+      "bytes": 38918,
+      "dimensions": [
+        960,
+        1440
+      ],
+      "mode": "RGBA",
+      "alphaBounds": [
+        145,
+        607,
+        816,
+        763
+      ],
+      "visiblePixels": 32186
+    },
+    {
+      "name": "sunset.webp",
+      "bytes": 106134,
+      "dimensions": [
+        960,
+        1440
+      ],
+      "mode": "RGB"
+    },
+    {
+      "name": "sunset-net.webp",
+      "bytes": 40280,
+      "dimensions": [
+        960,
+        1440
+      ],
+      "mode": "RGBA",
+      "alphaBounds": [
+        145,
+        607,
+        816,
+        763
+      ],
+      "visiblePixels": 32186
+    },
+    {
+      "name": "moonlight.webp",
+      "bytes": 97356,
+      "dimensions": [
+        960,
+        1440
+      ],
+      "mode": "RGB"
+    },
+    {
+      "name": "moonlight-net.webp",
+      "bytes": 34094,
+      "dimensions": [
+        960,
+        1440
+      ],
+      "mode": "RGBA",
+      "alphaBounds": [
+        145,
+        607,
+        816,
+        763
+      ],
+      "visiblePixels": 32186
+    }
+  ]
+}

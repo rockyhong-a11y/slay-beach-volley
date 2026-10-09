@@ -115,7 +115,7 @@ function serve(state) {
   state.rally = 0;
   server.pose = 1;
   server.poseTime = 0.45;
-  state.events.push({ type: 'hit', kind: 'serve', actor: index, x: server.x, y: server.y, z: 185 });
+  state.events.push({ type: 'hit', kind: 'serve', actor: index, x: server.x, y: server.y, z: 185, vx: state.ball.vx, vy: state.ball.vy, vz: state.ball.vz });
   updateHandler(state);
 }
 
@@ -228,7 +228,7 @@ function touch(state, actor, { spike = false, manual = false, block = false } = 
     state.charging = false;
     state.charge = 0;
   }
-  state.events.push({ type: 'hit', kind, perfect, manual, actor: actor.index, x: ball.x, y: ball.y, z: ball.z, rally: state.rally });
+  state.events.push({ type: 'hit', kind, perfect, manual, actor: actor.index, x: ball.x, y: ball.y, z: ball.z, vx: ball.vx, vy: ball.vy, vz: ball.vz, rally: state.rally });
   return true;
 }
 

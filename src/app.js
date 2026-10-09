@@ -1,6 +1,6 @@
 import { ROSTER, COURTS, characterFor } from './roster.js';
 import { createMatch, step, beginCharge, releaseSpike, requestBlock, playerCue, drainEvents } from './engine.js';
-import { Renderer, drawPortrait } from './render.js';
+import { Renderer, drawPortrait, loadCourtImages } from './render.js';
 import { GameAudio } from './audio.js';
 
 const $ = selector => document.querySelector(selector);
@@ -325,8 +325,8 @@ const observer = new ResizeObserver(() => renderer?.resize()); observer.observe(
 
 async function initialize() {
   try {
-    const response = await fetch(new URL('./sprites.json', import.meta.url)); if (!response.ok) throw new Error('manifest'); manifest = await response.json();
-    renderer = new Renderer($('#game-canvas'), images, manifest, { reducedMotion: reducedMotion.matches, shake: saved.settings.shake });
+    const [response, courtImages] = await Promise.all([fetch(new URL('./sprites.json', import.meta.url)), loadCourtImages()]); if (!response.ok) throw new Error('manifest'); manifest = await response.json();
+    renderer = new Renderer($('#game-canvas'), images, manifest, { reducedMotion: reducedMotion.matches, shake: saved.settings.shake, courtImages });
     game = makeGame(true); setMode(mode); updateSelection();
     requestAnimationFrame(frame);
     const essentials = [saved.character, saved.partner, ...opponents()];

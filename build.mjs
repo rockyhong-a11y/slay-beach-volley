@@ -15,7 +15,7 @@ async function assetFiles(directory) {
   const groups = await Promise.all(entries.map(entry => entry.isDirectory() ? assetFiles(`${directory}/${entry.name}`) : [`${directory}/${entry.name}`]));
   return groups.flat();
 }
-const assets = (await assetFiles('dist/assets')).filter(file => /\.(webp|svg|woff2|ttf)$/.test(file)).map(file => file.replace(/^dist\//, './'));
+const assets = (await assetFiles('dist/assets')).filter(file => /\.(webp|svg|woff2|ttf|wav|ogg|mp3)$/.test(file)).map(file => file.replace(/^dist\//, './'));
 const worker = (await readFile('sw.js', 'utf8')).replace('const ASSETS = [];', `const ASSETS = ${JSON.stringify(assets)};`);
 await writeFile('dist/sw.js', worker);
 console.log('Built the complete offline-capable game in dist/.');

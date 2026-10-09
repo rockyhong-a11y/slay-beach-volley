@@ -27,4 +27,8 @@ Phosphor Icons core. The copied regular SVGs are from the installed `@phosphor-i
 
 ## New game assets
 
-The beach backgrounds, court, net, volleyball, particles, SLAY Beach Volley mark, and all Web Audio sound effects/music were created for this game. The linked YouTube videos are references and are not included in the app. Their audio was not extracted.
+The stadium geometry, materials, lighting and six background/net plates were created for this game in Blender. Real FIVB/Volleyball World stadium references informed its tournament layout; no reference photographs, official logos or third-party textures are shipped. The reproducible scene, calibrated camera and source references are documented in [assets/courts/SOURCES.md](assets/courts/SOURCES.md).
+
+The volleyball, impact silhouettes, particles and SLAY Beach Volley mark are original game assets. Fighting-game impact design references informed the short directional hit sparks, distinguishable contact shapes and brief hit stop; see [artifacts/vfx-sources.md](artifacts/vfx-sources.md).
+
+Recorded volleyball contacts and other sports foley are licensed for reuse and are served locally as optimized samples. Authors, licenses, source URLs and preparation details are retained in [assets/audio/SOURCES.md](assets/audio/SOURCES.md). Supporting musical and UI cues use original Web Audio synthesis. The linked YouTube videos remain references; their audio was not extracted or included.

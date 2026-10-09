@@ -14,7 +14,7 @@
     <link rel="preload" href="./assets/fonts/DoHyeon-subset.ttf" as="font" type="font/ttf" crossorigin />
     <link rel="preload" href="./assets/portraits/raven.webp" as="image" fetchpriority="high" />
     <link rel="preload" href="./assets/portraits/valkyrie.webp" as="image" fetchpriority="high" />
-    <link rel="stylesheet" href="./style.css?v=4" />
+    <link rel="stylesheet" href="./style.css?v=5" />
   </head>
   <body>
     <div class="app-shell">
@@ -101,7 +101,7 @@
     <dialog id="settings-dialog" class="modal">
       <button class="modal-close icon-button" data-close aria-label="닫기"><img width="24" height="24" src="./assets/icons/x.svg" alt="" /></button>
       <span class="eyebrow">YOUR GAME, YOUR WAY</span><h2>게임 설정</h2>
-      <label class="setting-row"><span><strong>효과음</strong><small>스파이크, 점프, 모래 소리</small></span><input id="sfx-setting" type="checkbox" checked /></label>
+      <label class="setting-row"><span><strong>효과음</strong><small>배구공 타격, 모래 발소리, 휘슬</small></span><input id="sfx-setting" type="checkbox" checked /></label>
       <label class="setting-row"><span><strong>해변 배경음</strong><small>파도와 가벼운 마림바 리듬</small></span><input id="music-setting" type="checkbox" checked /></label>
       <label class="setting-row"><span><strong>타격 진동</strong><small>진동을 지원하는 모바일에서 작동해요</small></span><input id="haptics-setting" type="checkbox" checked /></label>
       <label class="setting-row"><span><strong>화면 흔들림</strong><small>강타 때 코트가 짧게 흔들려요</small></span><input id="shake-setting" type="checkbox" checked /></label>
@@ -121,6 +121,6 @@
     <div class="toast" id="toast" role="status"></div>
     <div class="sr-only" id="announcer" role="status" aria-live="polite"></div>
     <noscript>이 게임은 JavaScript가 필요합니다. 브라우저에서 JavaScript를 활성화해주세요.</noscript>
-    <script type="module" src="./src/app.js?v=4"></script>
+    <script type="module" src="./src/app.js?v=5"></script>
   </body>
 </html>
