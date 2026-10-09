@@ -1,0 +1,81 @@
+{
+  "onyx-spike": {
+    "frames": {
+      "left": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "imagePNG": "./source/onyx-spike-left-recovery.png",
+          "sourceComponent": 0,
+          "sourceColumns": 1,
+          "sourceRows": 1,
+          "bodyHeight": 1080
+        }
+      ]
+    }
+  },
+  "atlas-spike": {
+    "frames": {
+      "left": [
+        null,
+        null,
+        null,
+        {
+          "imagePNG": "./source/atlas-spike-corrections.png",
+          "sourceComponent": 0,
+          "sourceColumns": 2,
+          "sourceRows": 1,
+          "bodyHeight": 756
+        }
+      ],
+      "right": [
+        null,
+        null,
+        null,
+        {
+          "imagePNG": "./source/atlas-spike-corrections.png",
+          "sourceComponent": 1,
+          "sourceColumns": 2,
+          "sourceRows": 1,
+          "bodyHeight": 757
+        }
+      ]
+    }
+  },
+  "raven-spike": {
+    "frames": {
+      "left": [
+        null,
+        null,
+        null,
+        {
+          "imagePNG": "./source/raven-spike-corrections.png",
+          "sourceComponent": 0,
+          "sourceColumns": 3,
+          "sourceRows": 1,
+          "bodyHeight": 673
+        }
+      ],
+      "right": [
+        null,
+        {
+          "imagePNG": "./source/raven-spike-corrections.png",
+          "sourceComponent": 1,
+          "sourceColumns": 3,
+          "sourceRows": 1,
+          "bodyHeight": 660
+        },
+        {
+          "imagePNG": "./source/raven-spike-corrections.png",
+          "sourceComponent": 2,
+          "sourceColumns": 3,
+          "sourceRows": 1,
+          "bodyHeight": 668
+        }
+      ]
+    }
+  }
+}

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { createMatch, step, requestBlock, releaseSpike, beginCharge, predictLanding, drainEvents, playerCue, WORLD, HAND_HEIGHT } from '../src/engine.js';
-import { ROSTER } from '../src/roster.js';
+import { ROSTER, normalizeSelection } from '../src/roster.js';
 
 const frame = 1 / 120;
 function rallyState() {
@@ -37,8 +37,9 @@ function run(state, limit = 360, active = false) {
   return events;
 }
 
-test('all ten original identities and source sprite rectangles are shipped', async () => {
-  assert.equal(ROSTER.length, 10); assert.equal(new Set(ROSTER.map(character => character.id)).size, 10);
+test('all ten original identities retain intact reference images and sprite coordinates', async () => {
+  assert.deepEqual(ROSTER.map(character => character.id), ['nova', 'raven', 'valkyrie', 'viper', 'ember', 'atlas', 'seraph', 'lynx', 'tempest', 'onyx']);
+  assert.equal(new Set(ROSTER.map(character => character.id)).size, 10);
   const manifest = JSON.parse(await readFile(new URL('../src/sprites.json', import.meta.url), 'utf8'));
   for (const character of ROSTER) {
     const sprite = manifest[character.id];
@@ -46,6 +47,39 @@ test('all ten original identities and source sprite rectangles are shipped', asy
     for (const rect of sprite.frames) assert.ok(rect.x >= 0 && rect.y >= 0 && rect.x + rect.width <= sprite.width && rect.y + rect.height <= sprite.height);
     const bytes = await readFile(new URL(`../assets/sprites/${character.id}.webp`, import.meta.url));
     assert.equal(createHash('sha256').update(bytes).digest('hex'), sprite.webpSha256);
+  }
+});
+test('valid original selections survive without losing progress or settings', () => {
+  const settings = { sfx: false, muted: true, difficulty: 2 };
+  const old = { character: 'tempest', partner: 'onyx', wins: 13, tourWins: 2, bestTraining: 8, settings };
+  const migrated = normalizeSelection(old);
+  assert.deepEqual(migrated, old);
+  assert.deepEqual(normalizeSelection({ ...old, character: 'missing', partner: 'missing' }), { ...old, character: 'nova', partner: 'raven' });
+  assert.equal(migrated.settings, settings);
+  assert.equal(old.character, 'tempest', 'migration must leave its input untouched');
+  assert.deepEqual(normalizeSelection({ character: 'raven', partner: 'nova' }), { character: 'raven', partner: 'nova' });
+  assert.deepEqual(normalizeSelection({ character: 'raven', partner: 'raven' }), { character: 'raven', partner: 'nova' });
+});
+test('default, saved and incomplete selections always create four distinct valid 2v2 actors', () => {
+  for (const options of [{}, { character: 'tempest', partner: 'onyx', opponents: ['valkyrie'] }, { character: 'raven', partner: 'raven', opponents: [] }]) {
+    const state = createMatch(options);
+    assert.equal(state.actors.length, 4);
+    assert.deepEqual(state.actors.map(actor => actor.team), [0, 0, 1, 1]);
+    assert.deepEqual(state.actors.map(actor => actor.index), [0, 1, 2, 3]);
+    for (const actor of state.actors) {
+      assert.ok(ROSTER.some(character => character.id === actor.id));
+      assert.ok(Number.isFinite(actor.x) && Number.isFinite(actor.y));
+    }
+    assert.equal(new Set(state.actors.map(actor => actor.id)).size, 4);
+    assert.notEqual(state.actors[0].id, state.actors[1].id);
+    assert.notEqual(state.actors[2].id, state.actors[3].id);
+  }
+});
+test('every original player and partner combination faces two different opponents', () => {
+  for (const character of ROSTER) for (const partner of ROSTER.filter(other => other.id !== character.id)) {
+    const state = createMatch({ character: character.id, partner: partner.id, opponents: ['raven', 'valkyrie'] });
+    assert.deepEqual(state.actors.slice(0, 2).map(actor => actor.id), [character.id, partner.id]);
+    assert.equal(new Set(state.actors.map(actor => actor.id)).size, 4);
   }
 });
 test('a known falling ball predicts the court landing correctly', () => {
@@ -83,8 +117,8 @@ test('the doubled tape catches a ball that would have cleared the old net', () =
   step(state, frame);
   assert.equal(state.lastPoint?.reason, 'net'); assert.deepEqual(state.score, [1, 0]);
 });
-test('a block fails outside the narrow lateral lane, even for the block specialist', () => {
-  for (const id of ['nova', 'valkyrie']) {
+test('all ten animated players miss blocks outside the narrow lateral lane', () => {
+  for (const { id } of ROSTER) {
     for (const offset of [-80, 80]) {
       const state = rallyState(); state.touches = 0; state.lastActor = 2;
       Object.assign(state.actors[0], { id, x: 400 + offset, y: 650, z: 175 });
@@ -130,7 +164,7 @@ test('both teams serve over the doubled tape along an ordinary ballistic arc', (
     assert.equal(crossed, true);
   }
 });
-test('all ten airborne attacks can clear the doubled tape without changing gravity in flight', () => {
+test('all ten animated players’ airborne attacks can clear the doubled tape without changing gravity in flight', () => {
   for (const character of ROSTER) {
     const state = rallyState(); state.actors[0].id = character.id;
     Object.assign(state.actors[0], { z: 215, vz: 0 }); Object.assign(state.ball, { z: 545 });
@@ -208,9 +242,9 @@ test('seeded quick matches finish with a valid 7-point winner at every difficult
     assert.equal(state.phase, 'finished'); assert.equal(Math.max(...state.score), 7); assert.equal(state.winner, state.score[0] === 7 ? 0 : 1);
   }
 });
-test('all ten characters can jump and score manual spikes in 60-second practice', () => {
+test('all ten animated players can jump and score manual spikes in 60-second practice', () => {
   for (const character of ROSTER) {
-    const state = createMatch({ character: character.id, partner: character.id === 'seraph' ? 'nova' : 'seraph', training: true, seed: 42 });
+    const state = createMatch({ character: character.id, partner: ROSTER.find(player => player.id !== character.id).id, training: true, seed: 42 });
     run(state, 61, true); assert.equal(state.phase, 'finished', character.id); assert.equal(state.remaining, 0); assert.ok(state.stats.spikes > 0, `${character.id} needs a real spike opportunity`); assert.ok(state.stats.longestRally > 0, `${character.id} needs a recorded practice rally`);
   }
 });

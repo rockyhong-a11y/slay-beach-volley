@@ -1,0 +1,21 @@
+{
+  "characters": 10,
+  "clips": 40,
+  "selectedWholePoses": 960,
+  "webpBytes": 27616730,
+  "sourcePngs": 43,
+  "sourceWholePoses": 966,
+  "reviewedReplacements": 6,
+  "originalNovaRavenUnchanged": {
+    "wholePoses": 192,
+    "webpFiles": 8,
+    "bytesAndManifestFrames": true
+  },
+  "largestAtlas": [
+    3708776,
+    "./atlas-spike.webp",
+    2008,
+    1847
+  ],
+  "remainingTemporaryFiles": []
+}

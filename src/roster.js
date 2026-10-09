@@ -13,6 +13,13 @@ export const ROSTER = [
   { id: 'onyx', name: 'ONYX', ko: '오닉스', color: '#8f89c8', role: '카운터 센티널', power: 4, speed: 3, jump: 5, skill: '섀도 카운터', description: '차분하게 받아내고 높은 점프로 빈틈을 노려요.' },
 ];
 export const characterFor = id => ROSTER.find(character => character.id === id) || ROSTER[0];
+// Preserve valid selections and records; only unavailable or duplicate IDs fall back.
+export function normalizeSelection(record = {}) {
+  const character = characterFor(record.character).id;
+  const partner = ROSTER.find(player => player.id === record.partner && player.id !== character)?.id
+    || ROSTER.find(player => player.id !== character).id;
+  return { ...record, character, partner };
+}
 export const COURTS = [
   { name: '코랄 비치', en: 'CORAL BEACH', tag: '파도와 함께, 첫 번째 랠리', sky: '#a5dce4', sea: '#41b9bb', sand: '#f0d6a6', accent: '#116f66', evening: false },
   { name: '선셋 코브', en: 'SUNSET COVE', tag: '노을 아래, 더 뜨거운 승부', sky: '#f3b397', sea: '#8ebdb8', sand: '#eac092', accent: '#cb654b', evening: true },

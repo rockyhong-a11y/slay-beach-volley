@@ -1,5 +1,118 @@
 {
   "offline": true,
+  "cachedAnimationSheets": 40,
+  "offlineSelections": [
+    {
+      "character": "nova",
+      "activePlayers": [
+        "nova",
+        "onyx",
+        "raven",
+        "valkyrie"
+      ],
+      "decodedSheets": 16,
+      "maximumLiveSheets": 16
+    },
+    {
+      "character": "raven",
+      "activePlayers": [
+        "nova",
+        "onyx",
+        "raven",
+        "valkyrie"
+      ],
+      "decodedSheets": 16,
+      "maximumLiveSheets": 16
+    },
+    {
+      "character": "valkyrie",
+      "activePlayers": [
+        "nova",
+        "onyx",
+        "raven",
+        "valkyrie"
+      ],
+      "decodedSheets": 16,
+      "maximumLiveSheets": 16
+    },
+    {
+      "character": "viper",
+      "activePlayers": [
+        "viper",
+        "onyx",
+        "raven",
+        "valkyrie"
+      ],
+      "decodedSheets": 16,
+      "maximumLiveSheets": 16
+    },
+    {
+      "character": "ember",
+      "activePlayers": [
+        "ember",
+        "onyx",
+        "raven",
+        "valkyrie"
+      ],
+      "decodedSheets": 16,
+      "maximumLiveSheets": 16
+    },
+    {
+      "character": "atlas",
+      "activePlayers": [
+        "atlas",
+        "onyx",
+        "raven",
+        "valkyrie"
+      ],
+      "decodedSheets": 16,
+      "maximumLiveSheets": 16
+    },
+    {
+      "character": "seraph",
+      "activePlayers": [
+        "seraph",
+        "onyx",
+        "raven",
+        "valkyrie"
+      ],
+      "decodedSheets": 16,
+      "maximumLiveSheets": 16
+    },
+    {
+      "character": "lynx",
+      "activePlayers": [
+        "lynx",
+        "onyx",
+        "raven",
+        "valkyrie"
+      ],
+      "decodedSheets": 16,
+      "maximumLiveSheets": 16
+    },
+    {
+      "character": "tempest",
+      "activePlayers": [
+        "tempest",
+        "onyx",
+        "raven",
+        "valkyrie"
+      ],
+      "decodedSheets": 16,
+      "maximumLiveSheets": 16
+    },
+    {
+      "character": "onyx",
+      "activePlayers": [
+        "onyx",
+        "nova",
+        "raven",
+        "valkyrie"
+      ],
+      "decodedSheets": 16,
+      "maximumLiveSheets": 16
+    }
+  ],
   "sampledAudioDecoded": 4,
   "unrelatedCachePreserved": true,
   "errors": [],

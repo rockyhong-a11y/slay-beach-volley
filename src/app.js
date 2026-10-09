@@ -1,7 +1,8 @@
-import { ROSTER, COURTS, characterFor } from './roster.js';
+import { ROSTER, COURTS, characterFor, normalizeSelection } from './roster.js';
 import { createMatch, step, beginCharge, releaseSpike, requestBlock, playerCue, drainEvents } from './engine.js';
 import { Renderer, drawPortrait, loadCourtImages } from './render.js';
 import { GameAudio } from './audio.js';
+import { loadAnimationAssets, loadAnimationManifest } from './sprite-animation.js';
 
 const $ = selector => document.querySelector(selector);
 // Native editing stays available; holding any other part of the game has no callout.
@@ -15,16 +16,17 @@ try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch {
 saved = { ...defaults, ...saved, settings: { ...defaults.settings, ...saved?.settings } };
 const hadMovementAssist = 'assist' in saved.settings;
 delete saved.settings.assist;
-if (!ROSTER.some(character => character.id === saved.character)) saved.character = defaults.character;
-if (!ROSTER.some(character => character.id === saved.partner) || saved.partner === saved.character) saved.partner = ROSTER.find(character => character.id !== saved.character).id;
+const previousSelection = { character: saved.character, partner: saved.partner };
+saved = normalizeSelection(saved);
+const hadSelectionMigration = previousSelection.character !== saved.character || previousSelection.partner !== saved.partner;
 for (const key of ['wins', 'tourWins', 'bestTraining']) saved[key] = Math.max(0, Number(saved[key]) || 0);
 
 const audio = new GameAudio(saved.settings);
 audio.muted = saved.settings.muted;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-const images = {}, imagePromises = {};
-const motionImages = {}, motionPromises = {};
-let motionManifest = {};
+const images = {}, animationImages = {};
+let animationManifest = {}, assetsReady = false, assetsLoading = false, assetRequest = 0, assetPreparation, assetController, activeAssetKey = '';
+let activeAssetIds = new Set();
 let manifest = {}, renderer, game, mode = 'quick', courtIndex = 0, tourStage = 0;
 let playing = false, paused = false, starting = false, finishTimer = null, toastTimer = null, calloutUntil = 0;
 let accumulator = 0, previousFrame = performance.now(), hudAt = 0;
@@ -51,32 +53,76 @@ function opponents() {
 function makeGame(autoplay = false) {
   return createMatch({ character: saved.character, partner: saved.partner, opponents: opponents(), difficulty: mode === 'tour' ? tourStage : Number(saved.settings.difficulty), autoplay, training: mode === 'training', seed: autoplay ? 82901 : Date.now() });
 }
-function loadImage(id) {
-  if (imagePromises[id]) return imagePromises[id];
-  const image = new Image(); image.decoding = 'async'; images[id] = image;
-  imagePromises[id] = new Promise((resolve, reject) => {
-    image.onload = () => { redrawPortraits(); resolve(image); };
-    image.onerror = () => { delete imagePromises[id]; reject(new Error(`Could not load ${id}`)); };
+function releaseImage(image) {
+  if (!image) return;
+  image.onload = image.onerror = null; image.removeAttribute('src');
+}
+function loadImage(id, signal) {
+  if (images[id]?.complete && images[id].naturalWidth) return Promise.resolve(images[id]);
+  return new Promise((resolve, reject) => {
+    const image = new Image(); image.decoding = 'async';
+    const cancel = () => { releaseImage(image); reject(new DOMException('Portrait loading cancelled', 'AbortError')); };
+    const finish = error => {
+      signal?.removeEventListener('abort', cancel); image.onload = image.onerror = null;
+      if (error) { releaseImage(image); reject(error); }
+      else { images[id] = image; redrawPortraits(); resolve(image); }
+    };
+    signal?.addEventListener('abort', cancel, { once: true });
+    if (signal?.aborted) { cancel(); return; }
+    image.onload = async () => {
+      try { await image.decode(); if (signal?.aborted) throw new DOMException('Portrait loading cancelled', 'AbortError'); finish(); }
+      catch (error) { finish(error); }
+    };
+    image.onerror = () => finish(new Error(`Could not load ${id}`));
     image.src = new URL(`../assets/sprites/${id}.webp`, import.meta.url).href;
   });
-  return imagePromises[id];
 }
-function loadMotion(id) {
-  if (motionPromises[id]) return motionPromises[id];
-  const character = motionManifest.characters?.[id];
-  if (!character) return Promise.reject(new Error(`Missing motion kit: ${id}`));
-  const image = new Image(); image.decoding = 'async'; motionImages[id] = image;
-  motionPromises[id] = new Promise((resolve, reject) => {
-    image.onload = () => resolve(image);
-    image.onerror = () => { if (motionImages[id] === image) { delete motionPromises[id]; delete motionImages[id]; } reject(new Error(`Could not load motions: ${id}`)); };
-    image.src = new URL(character.source, import.meta.url).href;
-  });
-  return motionPromises[id];
+function updateStartButtons() {
+  for (const selector of ['#desktop-start', '#mobile-start']) $(selector).disabled = starting || assetsLoading || !renderer;
 }
-const loadCharacterAssets = id => Promise.all([loadImage(id), loadMotion(id)]);
-function pruneMotionImages() {
-  const active = new Set(game?.actors.map(actor => actor.id));
-  for (const id of Object.keys(motionImages)) if (!active.has(id)) { delete motionImages[id]; delete motionPromises[id]; }
+function prepareMatchAssets(match) {
+  if (!renderer) return Promise.resolve();
+  const ids = [...new Set(match.actors.map(actor => actor.id))], key = [...ids].sort().join(',');
+  if (key === activeAssetKey && (assetsReady || assetPreparation)) return assetPreparation || Promise.resolve();
+  const request = ++assetRequest;
+  assetController?.abort(); assetController = new AbortController();
+  const signal = assetController.signal;
+  activeAssetKey = key; activeAssetIds = new Set(ids); assetsReady = false; assetsLoading = true;
+  document.body.dataset.playersReady = 'false';
+  // Drop old decoded sheets before allocating the replacement team. The
+  // unchanged dictionaries are shared with Renderer and keep at most four IDs.
+  for (const id of Object.keys(animationImages)) if (!activeAssetIds.has(id)) {
+    Object.values(animationImages[id]).forEach(releaseImage); delete animationImages[id];
+  }
+  for (const id of Object.keys(images)) if (!activeAssetIds.has(id)) { releaseImage(images[id]); delete images[id]; }
+  updateStartButtons(); $('#load-status').hidden = false;
+  const missing = ids.filter(id => !animationImages[id]);
+  let preparedSheets;
+  assetPreparation = Promise.all([
+    Promise.all(ids.map(id => loadImage(id, signal))),
+    loadAnimationAssets({ ids: missing, manifest: animationManifest, signal }).then(animation => { preparedSheets = animation.images; return animation; }),
+  ]).then(([, animation]) => {
+    if (request !== assetRequest) { for (const sheets of Object.values(animation.images)) Object.values(sheets).forEach(releaseImage); return; }
+    Object.assign(animationImages, animation.images); assetsReady = true; assetsLoading = false;
+    document.body.dataset.playersReady = 'true'; document.body.dataset.animationPlayers = ids.join(',');
+    document.body.dataset.animationSheets = String(Object.values(animationImages).reduce((count, sheets) => count + Object.keys(sheets).length, 0));
+    $('#load-status').hidden = true; redrawPortraits();
+    renderer.resize(); renderer.draw(game, performance.now() / 1000);
+  }).catch(error => {
+    for (const sheets of Object.values(preparedSheets || {})) Object.values(sheets).forEach(releaseImage);
+    if (request === assetRequest) { assetsLoading = false; assetController.abort(); }
+    throw error;
+  }).finally(() => { if (request === assetRequest) { assetPreparation = null; updateStartButtons(); } });
+  return assetPreparation;
+}
+function preparePreview() {
+  prepareMatchAssets(game).catch(error => { if (error.name !== 'AbortError') toast('선수 이미지를 불러오지 못했어요. 다시 선택해주세요.'); });
+}
+async function waitForCurrentAssets() {
+  while (!assetsReady) {
+    try { await prepareMatchAssets(game); }
+    catch (error) { if (error.name !== 'AbortError') throw error; }
+  }
 }
 function redrawPortraits() {
   if (!Object.keys(manifest).length) return;
@@ -101,7 +147,7 @@ function updateSelection() {
   redrawPortraits();
   if (!playing) {
     game = makeGame(true); updateHUD();
-    if (renderer) Promise.all([saved.character, saved.partner, ...opponents()].map(loadCharacterAssets)).then(pruneMotionImages).catch(() => {});
+    if (renderer) preparePreview();
   }
 }
 function setMode(next) {
@@ -115,6 +161,7 @@ function setMode(next) {
   $('#court-badge').textContent = mode === 'tour' ? 'BEACH TOUR' : mode === 'training' ? '60 SEC' : '2 VS 2';
   if (mode === 'tour') { tourStage = 0; setCourt(0); }
   game = makeGame(true); updateHUD();
+  if (renderer) preparePreview();
   if ($('#mode-dialog').open) $('#mode-dialog').close();
 }
 function setCourt(index) {
@@ -126,7 +173,7 @@ function setCourt(index) {
   renderer?.setCourt(courtIndex);
   if (!playing) {
     game = makeGame(true); updateHUD();
-    if (renderer) Promise.all(game.actors.map(actor => loadCharacterAssets(actor.id))).then(pruneMotionImages).catch(() => {});
+    if (renderer) preparePreview();
   }
 }
 function clearControls() {
@@ -150,7 +197,7 @@ async function startMatch() {
   const startButtons = [$('#desktop-start'), $('#mobile-start')]; startButtons.forEach(button => button.disabled = true);
   try {
     if (!renderer) throw new Error('not ready');
-    await Promise.all([saved.character, saved.partner, ...opponents()].map(loadCharacterAssets));
+    await waitForCurrentAssets();
     clearTimeout(finishTimer);
     dialogs.forEach(dialog => { if (dialog.open) dialog.close(); });
     clearControls(); playing = true; paused = false; game = makeGame(); game.phaseTimer = 2.5;
@@ -159,10 +206,9 @@ async function startMatch() {
     $('#previous-court').disabled = $('#next-court').disabled = true;
     $('#announcer').textContent = `${modeNames[mode]} 시작. ${characterFor(saved.character).ko}와 ${characterFor(saved.partner).ko} 팀입니다.`;
     renderer.resize(); renderer.setCourt(courtIndex); updateHUD();
-    pruneMotionImages();
     $('#game-canvas').focus({ preventScroll: true }); audio.resume().catch(() => {});
   } catch { toast('선수 이미지가 준비되지 않았어요. 잠시 후 다시 시작해주세요.'); }
-  finally { starting = false; startButtons.forEach(button => button.disabled = false); }
+  finally { starting = false; updateStartButtons(); }
 }
 function goHome() {
   clearTimeout(finishTimer); playing = false; paused = false; clearControls();
@@ -239,7 +285,7 @@ function updateHUD() {
 function frame(now) {
   if (!playing && now - previousFrame < 32) { requestAnimationFrame(frame); return; }
   const elapsed = Math.min((now - previousFrame) / 1000, .08); previousFrame = now;
-  if (renderer && game && !document.hidden) {
+  if (renderer && game && assetsReady && !document.hidden) {
     if (!paused && !dialogs.some(dialog => dialog.open)) {
       const keyX = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
       const keyY = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
@@ -265,15 +311,18 @@ for (const character of ROSTER) {
     if (playing || starting) return;
     saved.character = character.id;
     if (saved.partner === character.id) saved.partner = ROSTER.find(other => other.id !== character.id).id;
-    updateSelection(); persist(); audio.click(); loadCharacterAssets(character.id).catch(() => toast('선수 이미지를 불러오지 못했어요. 다시 선택해주세요.'));
+    updateSelection(); persist(); audio.click();
     toast(`${character.ko} 선택! ${character.role}`);
   });
   $('#roster-grid').append(button);
 }
 $('#partner-button').addEventListener('click', () => {
   if (playing || starting) return;
-  const pool = ROSTER.filter(character => character.id !== saved.character), index = pool.findIndex(character => character.id === saved.partner);
-  saved.partner = pool[(index + 1) % pool.length].id; updateSelection(); persist(); audio.click();
+  const pool = ROSTER.filter(character => character.id !== saved.character);
+  const index = pool.findIndex(character => character.id === saved.partner);
+  saved.partner = pool[(index + 1) % pool.length].id;
+  updateSelection(); persist(); audio.click();
+  toast(`${characterFor(saved.partner).ko}와 함께 뛰어요.`);
 });
 document.querySelectorAll('.mode-button[data-mode]').forEach(button => button.addEventListener('click', () => { setMode(button.dataset.mode); audio.click(); }));
 $('#desktop-start').addEventListener('click', startMatch); $('#mobile-start').addEventListener('click', startMatch);
@@ -346,22 +395,24 @@ document.addEventListener('keyup', event => {
 window.addEventListener('blur', () => { clearControls(); if (playing && game.phase !== 'finished' && !dialogs.some(dialog => dialog.open)) openDialog($('#pause-dialog')); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { clearControls(); audio.suspend(); if (playing && game.phase !== 'finished' && !dialogs.some(dialog => dialog.open)) openDialog($('#pause-dialog')); } });
 reducedMotion.addEventListener('change', () => { if (renderer) renderer.reducedMotion = reducedMotion.matches; });
-const observer = new ResizeObserver(() => renderer?.resize()); observer.observe($('#arena-wrap'));
+const observer = new ResizeObserver(() => { if (assetsReady) renderer?.resize(); }); observer.observe($('#arena-wrap'));
 
 async function initialize() {
   try {
-    const [response, courtImages, motionResponse] = await Promise.all([fetch(new URL('./sprites.json', import.meta.url)), loadCourtImages(), fetch(new URL('../assets/motions/manifest.json', import.meta.url))]); if (!response.ok || !motionResponse.ok) throw new Error('manifest'); manifest = await response.json(); motionManifest = await motionResponse.json();
-    renderer = new Renderer($('#game-canvas'), images, manifest, { reducedMotion: reducedMotion.matches, shake: saved.settings.shake, courtImages, motionImages, motionManifest });
+    const [response, courtImages, allAnimations] = await Promise.all([fetch(new URL('./sprites.json', import.meta.url)), loadCourtImages(), loadAnimationManifest()]);
+    if (!response.ok) throw new Error('manifest');
+    manifest = await response.json(); animationManifest = allAnimations;
+    renderer = new Renderer($('#game-canvas'), images, manifest, { reducedMotion: reducedMotion.matches, shake: saved.settings.shake, courtImages, animationImages, animationManifest });
     game = makeGame(true); setMode(mode); updateSelection();
     requestAnimationFrame(frame);
-    const essentials = [saved.character, saved.partner, ...opponents()];
-    await Promise.all(essentials.map(loadCharacterAssets)); $('#load-status').hidden = true;
+    await waitForCurrentAssets(); $('#load-status').hidden = true;
     document.body.dataset.ready = 'true';
   } catch {
     $('#load-status').innerHTML = '<small>해변을 불러오지 못했어요. <button id="retry-load">다시 시도</button></small>';
     $('#retry-load').addEventListener('click', () => location.reload());
   }
 }
-if (hadMovementAssist) persist();
+if (hadMovementAssist || hadSelectionMigration) persist();
+updateStartButtons();
 initialize();
 if ('serviceWorker' in navigator && !['localhost', '127.0.0.1'].includes(location.hostname)) navigator.serviceWorker.register(new URL('../sw.js', import.meta.url)).catch(() => {});

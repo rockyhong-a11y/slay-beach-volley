@@ -1,4 +1,4 @@
-import { characterFor } from './roster.js';
+import { ROSTER, characterFor, normalizeSelection } from './roster.js';
 
 export const WORLD = Object.freeze({ width: 1000, depth: 1200, net: 600, netHeight: 460, gravity: 980 });
 export const HAND_HEIGHT = Object.freeze({ attack: 310, toss: 305 });
@@ -6,8 +6,15 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export const teamAt = y => y >= WORLD.net ? 0 : 1;
 
-export function createMatch({ character = 'nova', partner = 'seraph', opponents = ['raven', 'valkyrie'], difficulty = 1, targetScore = 7, autoplay = false, training = false, seed = Date.now() } = {}) {
-  const ids = [character, partner, ...opponents];
+export function createMatch({ character = 'nova', partner = 'seraph', opponents, difficulty = 1, targetScore = 7, autoplay = false, training = false, seed = Date.now() } = {}) {
+  const team = normalizeSelection({ character, partner });
+  const ids = [team.character, team.partner];
+  for (let index = 0; index < 2; index++) {
+    const preferred = [opponents?.[index], ['raven', 'valkyrie'][index]];
+    const rival = preferred.find(id => ROSTER.some(player => player.id === id) && !ids.includes(id))
+      || ROSTER.find(player => !ids.includes(player.id)).id;
+    ids.push(rival);
+  }
   const homes = [{ x: 335, y: 975 }, { x: 685, y: 790 }, { x: 685, y: 225 }, { x: 315, y: 410 }];
   return {
     phase: 'ready', phaseTimer: 1.5, time: 0, score: [0, 0], targetScore, difficulty, autoplay, training,

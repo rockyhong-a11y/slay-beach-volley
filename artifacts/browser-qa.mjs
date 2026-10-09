@@ -1,6 +1,7 @@
 import { chromium, expect } from '@playwright/test';
 import { writeFile, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { ROSTER as EXPECTED_ROSTER } from '../src/roster.js';
 const chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const urlArgument = process.argv.indexOf('--url');
 const gameURL = process.env.GAME_URL || (urlArgument >= 0 ? process.argv[urlArgument + 1] : 'http://localhost:5173/');
@@ -16,14 +17,14 @@ if (audit) {
 }
 if (process.argv.includes('--upgrade')) {
   const target = new URL(gameURL);
-  if (!['localhost', '127.0.0.1'].includes(target.hostname) || target.pathname !== '/dist/' || target.searchParams.get('v') !== '7') {
+  if (!['localhost', '127.0.0.1'].includes(target.hostname) || target.pathname !== '/dist/' || target.searchParams.get('v') !== '8') {
     await browser.close();
-    throw new Error('Upgrade QA requires the local /dist/?v=7 URL.');
+    throw new Error('Upgrade QA requires the local /dist/?v=8 URL.');
   }
   const base = new URL('./', target), workerURL = new URL('sw.js', base).href;
   const legacyWorkerURL = new URL('qa-legacy-sw.js', base).href;
   const fixturePath = 'dist/qa-legacy-sw.js';
-  const legacyCache = 'slay-beach-volley-v6', currentCache = 'slay-beach-volley-v7';
+  const legacyCache = 'slay-beach-volley-v7', currentCache = 'slay-beach-volley-v8';
   const contexts = [], errors = [];
   let fixtureCreated = false;
   try {
@@ -63,20 +64,20 @@ self.addEventListener('fetch', event => {
       await navigator.serviceWorker.register(legacyWorkerURL, { scope });
       await navigator.serviceWorker.ready;
       const cache = await caches.open(legacyCache);
-      const html = `<!doctype html><html><head><title>Legacy v6 fixture</title></head><body data-legacy="v6"><div id="legacy-marker">Cached v6 app</div><script>
+      const html = `<!doctype html><html><head><title>Legacy v7 fixture</title></head><body data-legacy="v7"><div id="legacy-marker">Cached v7 app</div><script>
 sessionStorage.setItem('volley-legacy-loads', String(Number(sessionStorage.getItem('volley-legacy-loads') || 0) + 1));
-if (new URL(location.href).searchParams.get('v') === '7') navigator.serviceWorker.register(${JSON.stringify(workerURL)}, {scope:${JSON.stringify(scope)}}).catch(error => console.error(error));
+if (new URL(location.href).searchParams.get('v') === '8') navigator.serviceWorker.register(${JSON.stringify(workerURL)}, {scope:${JSON.stringify(scope)}}).catch(error => console.error(error));
 <\/script></body></html>`;
-      await cache.put(baseURL, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': 'legacy-v6' } }));
-      await cache.put(new URL('index.html', baseURL).href, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': 'legacy-v6' } }));
+      await cache.put(baseURL, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': 'legacy-v7' } }));
+      await cache.put(new URL('index.html', baseURL).href, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': 'legacy-v7' } }));
       await caches.open('other-game-cache');
     }, { legacyWorkerURL, scope: base.pathname, legacyCache, baseURL: base.href, workerURL });
     await expect.poll(() => upgradePage.evaluate(() => navigator.serviceWorker.controller?.scriptURL || '')).toBe(legacyWorkerURL);
 
-    // An existing v6 game tab must remain open; only the explicit v7 link may
+    // An existing v7 game tab must remain open; only the explicit v8 link may
     // be navigated again when the new worker takes control.
     const oldPage = await upgradeContext.newPage();
-    const oldURL = new URL(base); oldURL.searchParams.set('v', '6');
+    const oldURL = new URL(base); oldURL.searchParams.set('v', '7');
     let oldNavigations = 0;
     oldPage.on('framenavigated', frame => { if (frame === oldPage.mainFrame()) oldNavigations++; });
     oldPage.on('pageerror', error => errors.push(error.message));
@@ -86,24 +87,26 @@ if (new URL(location.href).searchParams.get('v') === '7') navigator.serviceWorke
     let upgradeNavigations = 0, legacyResponseSeen = false;
     upgradePage.on('framenavigated', frame => { if (frame === upgradePage.mainFrame()) upgradeNavigations++; });
     upgradePage.on('response', response => {
-      if (response.request().isNavigationRequest() && response.headers()['x-volley-qa'] === 'legacy-v6') legacyResponseSeen = true;
+      if (response.request().isNavigationRequest() && response.headers()['x-volley-qa'] === 'legacy-v7') legacyResponseSeen = true;
     });
     await upgradePage.goto(gameURL, { waitUntil: 'domcontentloaded' });
     await upgradePage.waitForSelector('body[data-ready="true"]', { timeout: 30000 });
     await expect(upgradePage.locator('#game-canvas')).toHaveAttribute('data-scene', 'slay-stadium-v2');
+    await expect(upgradePage.locator('#game-canvas')).toHaveAttribute('data-animation', 'whole-sprite-60');
+    expect(await upgradePage.locator('.roster-item').count()).toBe(EXPECTED_ROSTER.length);
     await expect.poll(() => upgradePage.evaluate(() => navigator.serviceWorker.controller?.scriptURL || '')).toBe(workerURL);
-    expect(legacyResponseSeen, 'the first request must actually exercise the stale v6 HTML').toBe(true);
+    expect(legacyResponseSeen, 'the first request must actually exercise the stale v7 HTML').toBe(true);
     expect(await upgradePage.evaluate(() => sessionStorage.getItem('volley-legacy-loads'))).toBe('1');
     await upgradePage.waitForTimeout(800);
     expect(upgradeNavigations, 'one upgrade reload is required, without a navigation loop').toBe(2);
-    expect(oldNavigations, 'an existing v6 game must not be interrupted').toBe(1);
+    expect(oldNavigations, 'an existing v7 game must not be interrupted').toBe(1);
     await expect(oldPage.locator('#legacy-marker')).toBeVisible();
     const cachesAfter = await upgradePage.evaluate(async ({ legacyCache, currentCache }) => ({
       legacyRemoved: !await caches.has(legacyCache), currentPresent: await caches.has(currentCache), unrelatedPreserved: await caches.has('other-game-cache'),
     }), { legacyCache, currentCache });
     expect(cachesAfter).toEqual({ legacyRemoved: true, currentPresent: true, unrelatedPreserved: true });
     expect(errors).toEqual([]);
-    const report = { upgrade: true, staleV6ResponseSeen: legacyResponseSeen, freshInstallNavigations: freshNavigations, upgradeNavigations, existingV6Navigations: oldNavigations, ...cachesAfter, errors };
+    const report = { upgrade: true, staleV7ResponseSeen: legacyResponseSeen, freshInstallNavigations: freshNavigations, upgradeNavigations, existingV7Navigations: oldNavigations, ...cachesAfter, errors };
     await writeFile('artifacts/upgrade-qa-results.json', JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report));
   } finally {
@@ -114,6 +117,8 @@ if (new URL(location.href).searchParams.get('v') === '7') navigator.serviceWorke
   process.exit(0);
 }
 if (process.argv.includes('--motions')) {
+  const runtimeOnly = process.argv.includes('--runtime-only');
+  const motionReportPath = runtimeOnly ? 'artifacts/motion-runtime-qa-results.json' : 'artifacts/motion-qa-results.json';
   const motionContext = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1, hasTouch: true });
   const motionPage = await motionContext.newPage();
   const errors = [], responses = [];
@@ -123,282 +128,228 @@ if (process.argv.includes('--motions')) {
     await motionPage.goto(gameURL);
     await motionPage.waitForSelector('body[data-ready="true"]', { timeout: 30000 });
     await expect(motionPage.locator('#game-canvas')).toHaveAttribute('data-scene', 'slay-stadium-v2');
-    await expect(motionPage.locator('#game-canvas')).toHaveAttribute('data-animation', 'directional-rig-60');
-    const authored = await motionPage.evaluate(async gameURL => {
-      const moduleURL = new URL('src/character-motion.js', gameURL);
-      const { CharacterAnimator, MOTION_TIMING, CONTACT_PHASE, sampleMotion } = await import(moduleURL.href);
+    await expect(motionPage.locator('#game-canvas')).toHaveAttribute('data-animation', 'whole-sprite-60');
+    const authored = runtimeOnly ? { characters: [], method: 'Actual game runtime only' } : await motionPage.evaluate(async gameURL => {
+      const { SpriteAnimator, SPRITE_HEIGHT, SPRITE_TIMING, SPRITE_CONTACT_PHASE, sampleSpriteFrames, loadAnimationAssets, loadAnimationManifest } = await import(new URL('src/sprite-animation.js', gameURL).href);
       const { projectCourtPoint } = await import(new URL('src/render.js', gameURL).href);
       const { ROSTER } = await import(new URL('src/roster.js', gameURL).href);
-      const manifest = await (await fetch(new URL('assets/motions/manifest.json', gameURL))).json();
-      const images = Object.fromEntries(await Promise.all(ROSTER.map(async character => {
-        const image = new Image(); image.src = new URL(manifest.characters[character.id].source, moduleURL).href;
-        await image.decode(); return [character.id, image];
-      })));
+      const manifest = await loadAnimationManifest(), images = {};
+      const facings = ['down', 'up', 'left', 'right'], clips = ['run', 'toss', 'spike', 'block'];
       const proof = document.createElement('main'); proof.id = 'motion-proof';
-      Object.assign(proof.style, { position: 'absolute', top: '0', left: '0', zIndex: '9999', display: 'block', background: '#e8e3d6', width: '1920px' });
-      document.body.append(proof);
+      Object.assign(proof.style, { position: 'absolute', top: '0', left: '0', zIndex: '9999', display: 'block', background: '#e8e3d6', width: '1080px' }); document.body.append(proof);
       const makeCanvas = (id, width, height) => {
         const canvas = document.createElement('canvas'); canvas.id = id; canvas.width = width; canvas.height = height;
-        Object.assign(canvas.style, { display: 'block', width: `${width}px`, height: `${height}px` }); proof.append(canvas);
-        return canvas;
+        Object.assign(canvas.style, { display: 'block', width: `${width}px`, height: `${height}px` }); proof.append(canvas); return canvas;
       };
-      const facings = ['down', 'up', 'left', 'right'];
-      const directions = makeCanvas('motion-directions', 1040, 3000);
-      const actionCanvases = Object.fromEntries(facings.map(facing => [facing, makeCanvas(`motion-actions-${facing}`, 2160, 3000)]));
-      const directionsCtx = directions.getContext('2d');
+      const directions = makeCanvas('motion-directions', 960, ROSTER.length * 320);
+      const runTimelines = Object.fromEntries(facings.map(facing => [facing, makeCanvas(`motion-run-timeline-${facing}`, 2400, ROSTER.length * 660)]));
+      const actionCanvases = Object.fromEntries(facings.map(facing => [facing, makeCanvas(`motion-actions-${facing}`, 1080, ROSTER.length * 1000)]));
+      const frameCanvas = document.createElement('canvas'); frameCanvas.width = 180; frameCanvas.height = 250;
       const hash = canvas => {
         const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
-        let h = 2166136261;
-        for (let i = 0; i < pixels.length; i++) h = Math.imul(h ^ pixels[i], 16777619);
-        return h >>> 0;
+        let value = 2166136261; for (let i = 0; i < pixels.length; i++) value = Math.imul(value ^ pixels[i], 16777619); return value >>> 0;
       };
-      const alphaShapes = new Map();
-      const alphaShape = (id, facing, name) => {
-        const key = `${id}/${facing}/${name}`;
-        if (alphaShapes.has(key)) return alphaShapes.get(key);
-        const part = manifest.characters[id].views[facing].parts[name], [sx, sy, width, height] = part.rect;
-        const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true }); ctx.drawImage(images[id], sx, sy, width, height, 0, 0, width, height);
-        const rgba = ctx.getImageData(0, 0, width, height).data, pixels = [];
-        for (let py = 0; py < height; py++) for (let px = 0; px < width; px++) if (rgba[(py * width + px) * 4 + 3] >= 32) pixels.push([px + .5, py + .5]);
-        const crownStart = pixels[0]?.[1] || 0, crownColumns = new Set(pixels.filter(([, y]) => y - crownStart < 2).map(([x]) => x));
-        const opaqueColumns = pixels.map(([x]) => x), opaqueWidth = Math.max(...opaqueColumns) - Math.min(...opaqueColumns) + 1;
-        const shape = { part, pixels, crownCutRatio: crownColumns.size / opaqueWidth }; alphaShapes.set(key, shape); return shape;
+      const imageRegistry = new Map();
+      const prototypes = [CanvasRenderingContext2D.prototype, globalThis.OffscreenCanvasRenderingContext2D?.prototype].filter(Boolean);
+      const originals = prototypes.map(prototype => prototype.drawImage), observed = [];
+      const frameList = (id, clip, facing) => {
+        const view = manifest.characters[id].clips[clip].views[facing]; return Array.isArray(view) ? view : view.frames;
       };
-      const quantile = (values, at) => { const sorted = values.sort((a, b) => a - b); return sorted[Math.floor((sorted.length - 1) * at)] || 0; };
-      const inspectPart = (ctx, id, facing, name, destination) => {
-        const { part, pixels } = alphaShape(id, facing, name), [dx, dy, width, height] = destination, transform = ctx.getTransform();
-        const map = ([x, y]) => {
-          const px = dx + x * width / part.rect[2], py = dy + y * height / part.rect[3];
-          return { x: transform.a * px + transform.c * py + transform.e, y: transform.b * px + transform.d * py + transform.f };
-        };
-        const pivot = map(part.pivot), tip = map(part.tip), length = Math.hypot(tip.x - pivot.x, tip.y - pivot.y);
-        const along = { x: (tip.x - pivot.x) / length, y: (tip.y - pivot.y) / length }, across = { x: -along.y, y: along.x };
-        const points = pixels.map(map), acrossValues = [], alongValues = [];
-        let pivotGap = Infinity, tipGap = Infinity, minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, minAlong = Infinity, maxAlong = -Infinity;
-        for (const p of points) {
-          acrossValues.push((p.x - pivot.x) * across.x + (p.y - pivot.y) * across.y);
-          const axial = (p.x - pivot.x) * along.x + (p.y - pivot.y) * along.y;
-          alongValues.push(axial); minAlong = Math.min(minAlong, axial); maxAlong = Math.max(maxAlong, axial);
-          pivotGap = Math.min(pivotGap, Math.hypot(p.x - pivot.x, p.y - pivot.y));
-          tipGap = Math.min(tipGap, Math.hypot(p.x - tip.x, p.y - tip.y));
-          minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+      for (const [index, prototype] of prototypes.entries()) prototype.drawImage = function(image, ...args) {
+        const identity = imageRegistry.get(image);
+        if (identity && args.length === 8) {
+          const [sx, sy, sw, sh, dx, dy, dw, dh] = args, matrix = this.getTransform();
+          const xScale = Math.hypot(matrix.a, matrix.b) * dw / sw, yScale = Math.hypot(matrix.c, matrix.d) * dh / sh;
+          const fullFrames = facings.flatMap(facing => frameList(identity.id, identity.clip, facing).map((frame, frameIndex) => ({ facing, frameIndex, rect: frame.rect })));
+          const matched = fullFrames.find(frame => frame.rect.join(',') === [sx, sy, sw, sh].join(','));
+          observed.push({ ...identity, source: [sx, sy, sw, sh], destination: [dx, dy, dw, dh], uniformScaleError: Math.abs(xScale / yScale - 1), determinant: matrix.a * matrix.d - matrix.b * matrix.c, fullBodyCrop: Boolean(matched), facing: matched?.facing, frameIndex: matched?.frameIndex, alpha: this.globalAlpha });
         }
-        const pixelAxes = { x: { x: transform.a * width / part.rect[2], y: transform.b * width / part.rect[2] }, y: { x: transform.c * height / part.rect[3], y: transform.d * height / part.rect[3] } };
-        return { across: quantile(acrossValues, .95) - quantile(acrossValues, .05), along: quantile(alongValues, .95) - quantile(alongValues, .05), alongBounds: maxAlong - minAlong, bounds: [minX, minY, maxX, maxY], pivotGap, tipGap, pivot, tip, points, pixelAxes };
+        return originals[index].call(this, image, ...args);
       };
-      const draw = (ctx, id, facing, clip, phase, x, y, width, height, label = true, inspect = false) => {
-        ctx.fillStyle = '#e8e3d6'; ctx.fillRect(x, y, width, height);
-        ctx.strokeStyle = '#c3bbab'; ctx.strokeRect(x + 1, y + 1, width - 2, height - 2);
-        ctx.fillStyle = '#193a36'; ctx.font = 'bold 12px sans-serif';
-        if (label) ctx.fillText(`${id.toUpperCase()} / ${facing} / ${clip} ${phase.toFixed(2)}`, x + 8, y + 18);
-        const animator = new CharacterAnimator();
-        const actor = { id, index: 0, team: 0, x: 500, y: 900, z: clip === 'idle' || clip === 'run' ? 0 : 75, facing, moving: clip === 'run' ? 1 : 0, actionAt: 0, contactAt: -10, landAt: -10 };
-        let state = { time: 0, phase: 'rally' };
-        if (clip === 'run') {
-          animator.pose(actor, state);
-          actor.x += phase * 180; state.time = phase * MOTION_TIMING.run;
-        } else if (clip !== 'idle') {
-          actor.jumpKind = clip; state.time = phase * MOTION_TIMING[clip];
-          if (phase >= CONTACT_PHASE[clip]) {
-            actor.contactKind = clip === 'toss' ? 'set' : clip;
-            actor.contactAt = state.time - (phase - CONTACT_PHASE[clip]) * MOTION_TIMING[clip];
-          }
+      function draw(ctx, id, facing, clip, phase, x, y, width, height, label = true) {
+        ctx.fillStyle = '#e8e3d6'; ctx.fillRect(x, y, width, height); ctx.strokeStyle = '#c3bbab'; ctx.strokeRect(x + 1, y + 1, width - 2, height - 2);
+        // These canonical art samples disable cut fading. A fresh animator has
+        // no elapsed fade time; production rAF below keeps the default fade.
+        const animator = new SpriteAnimator({ transition: 0, frameFade: 0, stride: 120 });
+        const actor = { id, index: 0, team: 0, x: 500, y: 900, z: 0, facing, moving: clip === 'run' ? 1 : 0, action: 'idle', actionAt: 0, contactAt: -10, landAt: -10 };
+        const state = { time: phase * SPRITE_TIMING[clip], phase: 'rally' };
+        if (clip === 'run') { animator.pose(actor, { ...state, time: 0 }); actor.x += phase * 120; }
+        else if (clip === 'land') { actor.action = 'land'; actor.landAt = 0; }
+        else if (clip === 'serve' && phase < SPRITE_CONTACT_PHASE.serve) { state.phase = 'serve'; state.serving = 0; }
+        else if (clip !== 'idle') {
+          actor.z = 75; actor.jumpKind = clip === 'spike' ? 'attack' : clip;
+          if (phase >= SPRITE_CONTACT_PHASE[clip]) { actor.contactKind = clip === 'toss' ? 'set' : clip; actor.contactAt = SPRITE_CONTACT_PHASE[clip] * SPRITE_TIMING[clip]; }
         }
-        const anchor = projectCourtPoint(actor.x, actor.y, 0, 960, 1440), scale = clip === 'idle' ? 1.14 : .97;
-        const project = (wx, wy, wz) => {
-          const p = projectCourtPoint(wx, wy, wz, 960, 1440);
-          return { x: x + width / 2 + (p.x - anchor.x) * scale, y: y + height - 20 + (p.y - anchor.y) * scale };
-        };
-        const parts = new Set(), metrics = {}, actualDraw = ctx.drawImage;
-        const names = Object.fromEntries(Object.entries(manifest.characters[id].views[facing].parts).map(([name, part]) => [part.rect.join(','), name]));
-        ctx.drawImage = function(image, sx, sy, sw, sh, ...rest) {
-          const key = [sx, sy, sw, sh].join(','); parts.add(key);
-          if (inspect && names[key]) metrics[names[key]] = inspectPart(this, id, facing, names[key], rest);
-          return actualDraw.call(this, image, sx, sy, sw, sh, ...rest);
-        };
-        animator.draw(ctx, actor, state, { image: images[id], view: manifest.characters[id].views[facing], project });
-        ctx.drawImage = actualDraw;
-        return { parts: parts.size, clip: animator.pose(actor, state).clip, metrics };
-      };
-      for (const [row, character] of ROSTER.entries()) {
-        for (const [column, facing] of facings.entries()) draw(directionsCtx, character.id, facing, 'idle', 0, column * 260, row * 300, 260, 300);
-        for (const facing of facings) for (const [actionIndex, clip] of ['run', 'toss', 'spike', 'block'].entries()) {
-          const phases = clip === 'run' ? [.1, .42, .75] : [.15, CONTACT_PHASE[clip], .84];
-          for (const [phaseIndex, phase] of phases.entries()) draw(actionCanvases[facing].getContext('2d'), character.id, facing, clip, phase, (actionIndex * 3 + phaseIndex) * 180, row * 300, 180, 300);
-        }
+        const anchor = projectCourtPoint(actor.x, actor.y, actor.z, 960, 1440), crown = projectCourtPoint(actor.x, actor.y, actor.z + SPRITE_HEIGHT, 960, 1440);
+        const sourceArt = clip === 'idle' ? 'run' : ['serve', 'land'].includes(clip) ? 'spike' : clip;
+        const allFrames = frameList(id, sourceArt, facing), bodyHeight = Math.hypot(crown.x - anchor.x, crown.y - anchor.y);
+        const widthRatio = Math.max(...allFrames.map(frame => frame.pivot[0] / frame.bodyHeight)) + Math.max(...allFrames.map(frame => (frame.rect[2] - frame.pivot[0]) / frame.bodyHeight));
+        const heightRatio = Math.max(...allFrames.map(frame => frame.rect[3] / frame.bodyHeight));
+        const magnification = Math.min(1.25, (width - 20) / (widthRatio * bodyHeight), (height - 42) / (heightRatio * bodyHeight));
+        const project = (wx, wy, wz) => { const point = projectCourtPoint(wx, wy, wz, 960, 1440); return { x: x + width / 2 + (point.x - anchor.x) * magnification, y: y + height - 18 + (point.y - anchor.y) * magnification }; };
+        const start = observed.length;
+        const result = animator.draw(ctx, actor, state, { images: images[id], character: manifest.characters[id], project });
+        const calls = observed.slice(start), pose = animator.pose(actor, state);
+        if (calls.length !== 1 || calls[0].frameIndex !== result.frameIndex) throw new Error(`${id}/${facing}/${clip}: displayed art must match CUT ${result.frameIndex + 1}`);
+        if (label) { ctx.fillStyle = '#193a36'; ctx.font = 'bold 11px sans-serif'; ctx.fillText(`${id.toUpperCase()} / ${facing} / ${clip} / CUT ${result.frameIndex + 1}`, x + 7, y + 16); }
+        return { ...result, artClip: sampleSpriteFrames(manifest.characters[id], pose).artClip, calls };
       }
-      const frameCanvas = document.createElement('canvas'); frameCanvas.width = 180; frameCanvas.height = 266;
-      const ctx = frameCanvas.getContext('2d'), characters = [];
-      for (const character of ROSTER) {
-        const entry = manifest.characters[character.id], facingFrames = {};
-        for (const facing of ['down', 'up', 'left', 'right']) {
-          const animator = new CharacterAnimator();
-          const actor = { id: character.id, index: 0, team: 0, x: 500, y: 900, z: 0, facing, moving: 1, contactAt: -10, landAt: -10 };
-          const state = { time: 0, phase: 'rally' }, hashes = new Set();
-          let maxJointStep = 0, previous = null, partCount = 0;
-          animator.pose(actor, state);
-          for (let frame = 0; frame < 60; frame++) {
-            actor.x = 500 + frame * 3; state.time = frame / 60;
-            ctx.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
-            const anchor = projectCourtPoint(actor.x, actor.y, 0, 960, 1440);
-            const project = (x, y, z) => { const p = projectCourtPoint(x, y, z, 960, 1440); return { x: 90 + p.x - anchor.x, y: 246 + p.y - anchor.y }; };
-            const actualDraw = ctx.drawImage, used = new Set();
-            ctx.drawImage = function(image, sx, sy, sw, sh, ...rest) { used.add([sx, sy, sw, sh].join(',')); return actualDraw.call(this, image, sx, sy, sw, sh, ...rest); };
-            animator.draw(ctx, actor, state, { image: images[character.id], view: entry.views[facing], project });
-            ctx.drawImage = actualDraw; partCount = Math.max(partCount, used.size);
-            const pose = animator.pose(actor, state);
-            if (previous) for (const name of Object.keys(pose.joints)) {
-              const a = previous[name], b = pose.joints[name]; maxJointStep = Math.max(maxJointStep, Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z));
-            }
-            previous = pose.joints; hashes.add(hash(frameCanvas));
-          }
-          facingFrames[facing] = { frames: 60, distinctCanvasFrames: hashes.size, maxJointStep, articulatedPartsDrawn: partCount };
-        }
-        const actions = Object.fromEntries(['toss', 'spike', 'block'].map(clip => {
-          const hashes = new Set(), poses = [];
-          for (let frame = 0; frame < 60; frame++) {
-            const phase = frame / 60;
-            draw(ctx, character.id, 'right', clip, phase, 0, 0, frameCanvas.width, frameCanvas.height, false);
-            hashes.add(hash(frameCanvas)); poses.push(JSON.stringify(sampleMotion(clip, phase).joints));
-          }
-          return [clip, { frames: 60, distinctCanvasFrames: hashes.size, distinctJointPoses: new Set(poses).size }];
-        }));
-        const proportions = {};
-        for (const facing of facings) {
-          const snapshots = [];
-          for (const clip of ['idle', 'run', 'toss', 'spike', 'block']) {
-            const phases = clip === 'idle' ? [0] : clip === 'run' ? [.1, .42, .75] : [.15, CONTACT_PHASE[clip], .84];
-            for (const phase of phases) {
-              const { metrics } = draw(ctx, character.id, facing, clip, phase, 0, 0, frameCanvas.width, frameCanvas.height, false, true);
-              const head = metrics.head, headWidth = head.across;
-              const names = ['upperArmL', 'upperArmR', 'forearmL', 'forearmR'];
-              const legNames = ['thighL', 'thighR', 'shinL', 'shinR'];
-              const seams = [['upperArmL', 'forearmL'], ['upperArmR', 'forearmR'], ['thighL', 'shinL'], ['thighR', 'shinR'], ['body', 'head']].map(([a, b]) => ({
-                parts: [a, b], endpointGap: Math.hypot(metrics[a].tip.x - metrics[b].pivot.x, metrics[a].tip.y - metrics[b].pivot.y), opacityGap: Math.max(metrics[a].tipGap, metrics[b].pivotGap) / headWidth,
-              }));
-              const bodyGrid = new Map();
-              for (const p of metrics.body.points) { const key = `${Math.floor(p.x)},${Math.floor(p.y)}`; if (!bodyGrid.has(key)) bodyGrid.set(key, []); bodyGrid.get(key).push(p); }
-              for (const name of ['upperArmL', 'upperArmR', 'thighL', 'thighR']) {
-                // A shoulder/hip pivot lies at the centre of a round cap. Its
-                // alpha edge must meet the torso; the pivot need not be inside
-                // torso pixels. Compare only the cap near this joint, so a
-                // hand touching the waist cannot hide a detached shoulder.
-                const joint = metrics[name].pivot, capRadius = headWidth * .18, search = Math.ceil(headWidth * .03 + 1);
-                let gap = Infinity, centreGap = Infinity;
-                for (const p of metrics[name].points) {
-                  if (Math.hypot(p.x - joint.x, p.y - joint.y) > capRadius) continue;
-                  const gx = Math.floor(p.x), gy = Math.floor(p.y);
-                  for (let dx = -search; dx <= search; dx++) for (let dy = -search; dy <= search; dy++) for (const bodyPixel of bodyGrid.get(`${gx + dx},${gy + dy}`) || []) {
-                    const vx = p.x - bodyPixel.x, vy = p.y - bodyPixel.y, distance = Math.hypot(vx, vy);
-                    centreGap = Math.min(centreGap, distance);
-                    const direction = { x: vx / Math.max(1e-8, distance), y: vy / Math.max(1e-8, distance) };
-                    // Alpha samples represent transformed unit pixel squares,
-                    // not zero-area points. Measure their facing edge coverage
-                    // along the separation axis, including both footprints.
-                    const radius = ({ pixelAxes }) => .5 * (Math.abs(direction.x * pixelAxes.x.x + direction.y * pixelAxes.x.y) + Math.abs(direction.x * pixelAxes.y.x + direction.y * pixelAxes.y.y));
-                    gap = Math.min(gap, Math.max(0, distance - radius(metrics.body) - radius(metrics[name])));
-                  }
-                  if (gap < .25) break;
-                }
-                seams.push({ parts: ['body', name], endpointGap: 0, opacityGap: gap / headWidth, pixelEdgeGap: gap, pixelCentreGap: centreGap / headWidth, pixelCentreGapPixels: centreGap });
+      try {
+        const characters = [];
+        for (const [characterIndex, { id }] of ROSTER.entries()) {
+          const loaded = await loadAnimationAssets({ ids: [id], manifest }); images[id] = loaded.images[id];
+          for (const [clip, image] of Object.entries(images[id])) imageRegistry.set(image, { id, clip });
+          const entry = { id, directions: {}, aliases: {} };
+          for (const [directionIndex, facing] of facings.entries()) {
+            draw(directions.getContext('2d'), id, facing, 'idle', 0, directionIndex * 240, characterIndex * 320, 240, 320);
+            draw(frameCanvas.getContext('2d'), id, facing, 'idle', 0, 0, 0, 180, 250, false);
+            const direction = { renderedDirectionHash: hash(frameCanvas), clips: {} };
+            for (const [clipIndex, clip] of clips.entries()) {
+              const contact = SPRITE_CONTACT_PHASE[clip], times = clip === 'run' ? Array.from({ length: 6 }, (_, i) => i / 6) : [0, contact * .32, contact * .72, contact, contact + (1 - contact) * .45, contact + (1 - contact) * .82];
+              for (let cut = 0; cut < 6; cut++) {
+                const phase = cut === 3 && clip !== 'run' ? times[cut] : (times[cut] + (times[cut + 1] ?? 1)) / 2;
+                draw(actionCanvases[facing].getContext('2d'), id, facing, clip, phase, cut * 180, (characterIndex * 4 + clipIndex) * 250, 180, 250);
               }
-              const minY = Math.min(...Object.values(metrics).map(part => part.bounds[1])), maxY = Math.max(...Object.values(metrics).map(part => part.bounds[3]));
-              snapshots.push({ clip, phase, headWidth, headLength: head.along, headAlphaLength: head.alongBounds, alphaHeight: maxY - minY, standingHeads: (maxY - minY) / head.alongBounds, denseHeadCount: (maxY - minY) / head.along, torsoWidthRatio: metrics.body.across / headWidth, armWidthRatio: Math.max(...names.map(name => metrics[name].across / headWidth)), legWidthRatio: Math.max(...legNames.map(name => metrics[name].across / headWidth)), seams, partWidths: Object.fromEntries(Object.entries(metrics).map(([name, part]) => [name, part.across / headWidth])) });
+              const hashes = new Set(), seen = new Set();
+              let maxArtPosesDrawn = 0, maxUniformScaleError = 0, fullBodyCropsOnly = true, mirroredDraws = 0, compositeFrames = 0;
+              for (let frame = 0; frame < 60; frame++) {
+                const drawn = draw(frameCanvas.getContext('2d'), id, facing, clip, frame / 60, 0, 0, 180, 250, false);
+                if (clip === 'run') {
+                  const column = frame % 20, row = characterIndex * 3 + Math.floor(frame / 20), ctx = runTimelines[facing].getContext('2d');
+                  const tile = draw(ctx, id, facing, clip, frame / 60, column * 120, row * 220, 120, 220, false);
+                  ctx.fillStyle = '#193a36'; ctx.font = '9px sans-serif'; ctx.fillText(`${id} / ${facing} / ${frame + 1}: CUT ${tile.frameIndex + 1}`, column * 120 + 5, row * 220 + 14);
+                }
+                hashes.add(hash(frameCanvas)); maxArtPosesDrawn = Math.max(maxArtPosesDrawn, drawn.drawCount); compositeFrames += drawn.compositeDrawCount;
+                for (const call of drawn.calls) { seen.add(call.frameIndex); maxUniformScaleError = Math.max(maxUniformScaleError, call.uniformScaleError); fullBodyCropsOnly &&= call.fullBodyCrop; if (call.determinant < 0) mirroredDraws++; }
+              }
+              const contactFrame = clip === 'run' ? null : draw(frameCanvas.getContext('2d'), id, facing, clip, contact, 0, 0, 180, 250, false);
+              direction.clips[clip] = { timelineSamples: 60, authoredCutsSeen: [...seen].sort((a, b) => a - b), distinctCanvasFrames: hashes.size, maxArtPosesDrawn, maxUniformScaleError, fullBodyCropsOnly, mirroredDraws, compositeFrames, contact: contactFrame && { frameIndex: contactFrame.frameIndex, drawCount: contactFrame.drawCount, observedCuts: contactFrame.calls.map(call => call.frameIndex), weights: contactFrame.calls.map(call => call.alpha) } };
             }
+            entry.directions[facing] = direction;
           }
-          const standing = snapshots[0];
-          proportions[facing] = { standing, headCrownCutRatio: alphaShape(character.id, facing, 'head').crownCutRatio, maxArmWidthRatio: Math.max(...snapshots.map(frame => frame.armWidthRatio)), maxLegWidthRatio: Math.max(...snapshots.map(frame => frame.legWidthRatio)), maxSeamOpacityGap: Math.max(...snapshots.flatMap(frame => frame.seams.map(seam => seam.opacityGap))), maxSeamExcessPixels: Math.max(...snapshots.flatMap(frame => frame.seams.map(seam => (seam.opacityGap - .03) * frame.headWidth))), maxSeamEndpointGap: Math.max(...snapshots.flatMap(frame => frame.seams.map(seam => seam.endpointGap))), partWidthVariation: Object.fromEntries(Object.keys(standing.partWidths).filter(name => name !== 'hair').map(name => { const widths = snapshots.map(frame => frame.partWidths[name]); return [name, Math.max(...widths) / Math.max(.0001, Math.min(...widths))]; })), snapshots };
+          for (const clip of ['idle', 'serve', 'land']) {
+            const seen = new Set(), art = new Set();
+            for (let frame = 0; frame < 60; frame++) { const drawn = draw(frameCanvas.getContext('2d'), id, 'down', clip, frame / 60, 0, 0, 180, 250, false); art.add(drawn.artClip); for (const call of drawn.calls) seen.add(call.frameIndex); }
+            entry.aliases[clip] = { timelineSamples: 60, artClips: [...art], authoredCutsSeen: [...seen].sort((a, b) => a - b) };
+          }
+          characters.push(entry);
+          for (const image of Object.values(images[id])) { imageRegistry.delete(image); image.removeAttribute('src'); }
+          delete images[id];
         }
-        characters.push({ id: character.id, image: [images[character.id].naturalWidth, images[character.id].naturalHeight], generatedDirectionalKit: entry.identity.generatedDirectionalKit, facingFrames, actions, proportions });
-      }
-      return { method: 'Real generated images and CharacterAnimator.draw, calibrated projectCourtPoint, 60 sequential movement poses, all-direction preparation/contact/recovery action snapshots; alpha silhouettes measured under the actual drawImage transforms', characters };
+        // This browser-only fixture proves the two-body blend preserves opaque
+        // overlap; ordinary source-over blending would lower alpha to 191.
+        const solidImage = async color => { const source = document.createElement('canvas'); source.width = 24; source.height = 36; const ctx = source.getContext('2d'); ctx.fillStyle = color; ctx.fillRect(0, 0, 24, 36); const image = new Image(); image.src = source.toDataURL(); await image.decode(); return image; };
+        const [red, green] = await Promise.all([solidImage('#ff0000'), solidImage('#00ff00')]);
+        const rectangle = { rect: [0, 0, 24, 36], pivot: [12, 36], bodyHeight: 36 };
+        const fixture = { clips: Object.fromEntries(['run', 'block'].map(clip => [clip, { views: { down: Array(6).fill(rectangle) } }])) };
+        const canvas = document.createElement('canvas'); canvas.width = 100; canvas.height = 100;
+        const animator = new SpriteAnimator(); animator.pose = () => ({ clip: 'block', phase: 0, facing: 'down', previous: { clip: 'run', phase: 0, facing: 'down' }, transitionWeight: .5 });
+        const blended = animator.draw(canvas.getContext('2d'), { x: 0, y: 0, z: 0, index: 0 }, { time: 0 }, { images: { run: red, block: green }, character: fixture, project: (x, y, z) => ({ x: 50, y: 60 - z * 36 / SPRITE_HEIGHT }) });
+        const overlap = [...canvas.getContext('2d').getImageData(50, 42, 1, 1).data];
+        return { method: 'Actual whole-body atlas crops, SpriteAnimator.draw and calibrated court projection; 60 canonical timeline samples per clip with frameFade=0 so actual crops match cut labels; production rAF uses default fading; source and offscreen drawImage transforms observed without modifying artwork', characters, blendOpacity: { ...blended, overlap } };
+      } finally { for (const [index, prototype] of prototypes.entries()) prototype.drawImage = originals[index]; }
     }, gameURL);
-    // Preserve the raster evidence even when an assertion exposes a regression.
-    await writeFile('artifacts/motion-qa-results.json', JSON.stringify({ ...authored, runtime: [], errors, responses }, null, 2));
-    await motionPage.locator('#motion-directions').screenshot({ path: 'artifacts/motion-directions.png' });
-    for (const facing of ['down', 'up', 'left', 'right']) await motionPage.locator(`#motion-actions-${facing}`).screenshot({ path: `artifacts/motion-actions-${facing}.png` });
-    await motionPage.locator('#motion-actions-right').screenshot({ path: 'artifacts/motion-actions.png' });
-    expect(authored.characters).toHaveLength(10);
-    for (const character of authored.characters) {
-      expect(character.generatedDirectionalKit, character.id).toBe(true);
-      for (const [facing, frames] of Object.entries(character.facingFrames)) {
-        expect(frames.articulatedPartsDrawn, `${character.id} ${facing} upper/lower limb parts`).toBe(11);
-        expect(frames.distinctCanvasFrames, `${character.id} ${facing} rendered run poses`).toBeGreaterThanOrEqual(55);
-        expect(frames.maxJointStep, `${character.id} ${facing} movement continuity`).toBeLessThan(18);
+    await writeFile(motionReportPath, JSON.stringify({ ...authored, runtime: [], errors, responses }, null, 2));
+    if (!runtimeOnly) {
+      await motionPage.locator('#motion-directions').screenshot({ path: 'artifacts/motion-directions.png' });
+      for (const facing of ['down', 'up', 'left', 'right']) await motionPage.locator(`#motion-run-timeline-${facing}`).screenshot({ path: `artifacts/motion-run-timeline-${facing}.png` });
+      for (const facing of ['down', 'up', 'left', 'right']) await motionPage.locator(`#motion-actions-${facing}`).screenshot({ path: `artifacts/motion-actions-${facing}.png` });
+      await motionPage.locator('#motion-actions-right').screenshot({ path: 'artifacts/motion-actions.png' });
+      expect(authored.characters.map(character => character.id)).toEqual(EXPECTED_ROSTER.map(character => character.id));
+      for (const character of authored.characters) {
+        expect(new Set(Object.values(character.directions).map(direction => direction.renderedDirectionHash)).size, `${character.id}: four rendered views`).toBe(4);
+        for (const [facing, direction] of Object.entries(character.directions)) for (const [clip, frames] of Object.entries(direction.clips)) {
+          const label = `${character.id}/${facing}/${clip}`;
+          expect(frames.timelineSamples, label).toBe(60); expect(frames.authoredCutsSeen, label).toEqual([0, 1, 2, 3, 4, 5]);
+          expect(frames.distinctCanvasFrames, label).toBeGreaterThanOrEqual(6);
+          expect(frames.maxArtPosesDrawn, `${label}: maximum two complete poses`).toBeLessThanOrEqual(2);
+          expect(frames.maxUniformScaleError, `${label}: no anatomical stretching`).toBeLessThan(1e-7);
+          expect(frames.fullBodyCropsOnly, label).toBe(true); expect(frames.mirroredDraws, label).toBe(0);
+          if (frames.contact) { expect(frames.contact.frameIndex, label).toBe(3); expect(frames.contact.drawCount, label).toBe(1); expect(frames.contact.observedCuts, label).toEqual([3]); expect(frames.contact.weights, label).toEqual([1]); }
+        }
+        expect(character.aliases.idle.artClips).toEqual(['run']); expect(character.aliases.idle.authoredCutsSeen).toEqual([0]);
+        expect(character.aliases.serve.artClips).toEqual(['spike']); expect(character.aliases.serve.authoredCutsSeen).toEqual([0, 1, 2, 3, 4, 5]);
+        expect(character.aliases.land.authoredCutsSeen).toEqual([5]);
       }
-      for (const [action, frames] of Object.entries(character.actions)) {
-        expect(frames.distinctJointPoses, `${character.id} ${action} authored poses`).toBe(60);
-        expect(frames.distinctCanvasFrames, `${character.id} ${action} rendered poses`).toBeGreaterThanOrEqual(55);
-      }
-      for (const [facing, proportions] of Object.entries(character.proportions)) {
-        const label = `${character.id} ${facing}`;
-        // Ratios use visible atlas alpha under the real draw transform, rather
-        // than the rig constants. Hair remains cosmetic around the SD skull.
-        // Count heads using the central 90% of painted head-alpha density.
-        // Full min/max alpha extent includes buns and ponytails: Tempest's
-        // complete side ponytail produces 1.964 decorated heads while the dense
-        // face/skull silhouette is 2.531 heads. Neither uses SD_ANATOMY values.
-        expect(proportions.standing.denseHeadCount, `${label} SD dense skull silhouette head count`).toBeGreaterThan(2.3);
-        expect(proportions.standing.denseHeadCount, `${label} SD dense skull silhouette head count`).toBeLessThan(3.3);
-        expect(proportions.headCrownCutRatio, `${label} complete crown without a horizontal crop`).toBeLessThan(.4);
-        expect(proportions.standing.torsoWidthRatio, `${label} torso stays narrower than the SD head`).toBeLessThan(.9);
-        expect(proportions.maxArmWidthRatio, `${label} arms do not flare into broad skin wedges`).toBeLessThan(.4);
-        expect(proportions.maxLegWidthRatio, `${label} compact leg thickness`).toBeLessThan(.45);
-        expect(proportions.maxSeamEndpointGap, `${label} articulated endpoints remain joined`).toBeLessThan(.05);
-        // Allow half a raster pixel around the 3%-of-head seam threshold.
-        // A transformed pixel square resolves onto integer canvas pixels: the
-        // final Viper rear stride has 1.462px edge separation vs1.423px nominal
-        // tolerance, a0.039px difference that cannot form another visible pixel.
-        expect(proportions.maxSeamExcessPixels, `${label} limbs, torso and head remain connected (3% + half a raster pixel)`).toBeLessThan(.5);
-        for (const [part, variation] of Object.entries(proportions.partWidthVariation)) expect(variation, `${label} ${part} thickness remains constant while moving`).toBeLessThan(1.08);
-      }
+      expect(authored.blendOpacity.drawCount).toBe(2); expect(authored.blendOpacity.compositeDrawCount).toBe(1);
+      expect(authored.blendOpacity.overlap[3], 'crossfade keeps the opaque face/body overlap opaque').toBe(255);
+      expect(authored.blendOpacity.overlap[0]).toBeGreaterThanOrEqual(120); expect(authored.blendOpacity.overlap[0]).toBeLessThanOrEqual(136);
+      expect(authored.blendOpacity.overlap[1]).toBeGreaterThanOrEqual(120); expect(authored.blendOpacity.overlap[1]).toBeLessThanOrEqual(136);
     }
-    await motionPage.evaluate(() => document.querySelector('#motion-proof').remove());
-    await motionPage.getByRole('button', { name: '노바 선택', exact: true }).click();
-    await motionPage.locator('#desktop-start').click();
+    await motionPage.evaluate(() => document.querySelector('#motion-proof')?.remove());
+    await motionPage.getByRole('button', { name: '노바 선택', exact: true }).click(); await motionPage.locator('#desktop-start').click();
     await motionPage.waitForSelector('body[data-phase="rally"]');
     const runtime = [];
-    for (const [key, facing] of [['ArrowRight', 'right'], ['ArrowLeft', 'left'], ['ArrowUp', 'up'], ['ArrowDown', 'down']]) {
-      const before = await motionPage.locator('#you-indicator').evaluate(element => element.style.transform);
-      await motionPage.keyboard.down(key);
-      const frames = await motionPage.evaluate(async () => {
-        const canvas = document.querySelector('#game-canvas'), ctx = canvas.getContext('2d'), hashes = new Set(), timestamps = [];
-        for (let frame = 0; frame < 60; frame++) {
-          const timestamp = await new Promise(requestAnimationFrame); timestamps.push(timestamp);
-          const box = canvas.getBoundingClientRect(), player = document.querySelector('#you-indicator').getBoundingClientRect();
-          const px = ((player.left + player.width / 2 - box.left) / box.width) * canvas.width;
-          const py = ((player.bottom - box.top) / box.height) * canvas.height;
-          const x = Math.max(0, Math.min(canvas.width - 150, Math.floor(px - 75))), y = Math.max(0, Math.min(canvas.height - 220, Math.floor(py + 8)));
-          const pixels = ctx.getImageData(x, y, 150, 220).data;
-          let h = 2166136261; for (let i = 0; i < pixels.length; i += 4) h = Math.imul(h ^ pixels[i] ^ pixels[i + 1] ^ pixels[i + 2], 16777619);
-          hashes.add(h >>> 0);
-        }
-        return { frames: timestamps.length, distinctPlayerFrames: hashes.size, meanFrameMs: (timestamps.at(-1) - timestamps[0]) / (timestamps.length - 1), renderedFacing: document.body.dataset.facing };
-      });
-      await motionPage.keyboard.up(key);
-      const after = await motionPage.locator('#you-indicator').evaluate(element => element.style.transform);
-      expect(after, `${facing} movement reaches actual game`).not.toBe(before);
-      expect(frames.distinctPlayerFrames, `${facing} actual player frames`).toBeGreaterThan(40);
-      expect(frames.meanFrameMs, 'actual animation frame delivery').toBeLessThan(40);
-      expect(frames.renderedFacing).toBe(facing);
-      runtime.push({ key, facing, ...frames });
+    for (const viewport of [{ width: 1440, height: 1000 }, { width: 393, height: 852 }]) {
+      await motionPage.setViewportSize(viewport); await motionPage.waitForTimeout(100);
+      for (const [key, facing] of [['ArrowRight', 'right'], ['ArrowLeft', 'left'], ['ArrowUp', 'up'], ['ArrowDown', 'down']]) {
+        await motionPage.waitForSelector('body[data-phase="rally"]', { timeout: 15000 });
+        const before = await motionPage.locator('#you-indicator').evaluate(element => element.style.transform); await motionPage.keyboard.down(key);
+        const frames = await motionPage.evaluate(async ({ initialPosition, expectedFacing }) => {
+          const { COURT_SCENE } = await import(new URL('src/court-scene.js', location.href).href);
+          const timestamps = [], positions = [], groundSamples = [], phaseCounts = {}, canvas = document.querySelector('#game-canvas'), ctx = canvas.getContext('2d'), original = ctx.drawImage, originalEllipse = ctx.ellipse;
+          let latestGround = null;
+          function unprojectFloor(px, py) {
+            const bounds = canvas.getBoundingClientRect(), [mx, my, mw] = COURT_SCENE.projection;
+            const ux = px / bounds.width * COURT_SCENE.width, uy = py / bounds.height * COURT_SCENE.height;
+            const a = mx[0] - ux * mw[0], b = mx[1] - ux * mw[1], c = ux * mw[3] - mx[3];
+            const d = my[0] - uy * mw[0], e = my[1] - uy * mw[1], f = uy * mw[3] - my[3], det = a * e - b * d;
+            return { x: (c * e - b * f) / det, y: (a * f - c * d) / det };
+          }
+          ctx.ellipse = function(x, y, rx, ry, ...args) { if (rx === 13 && ry === 4 && Math.abs(this.lineWidth - 1.3) < .001) latestGround = unprojectFloor(x, y - 2); return originalEllipse.call(this, x, y, rx, ry, ...args); };
+          let pendingPaints = 0, gameRenderedFrames = 0, maxSpriteDrawsPerFrame = 0, maxUniformScaleError = 0;
+          ctx.drawImage = function(image, ...args) {
+            const isArt = image instanceof HTMLImageElement && image.src.includes('/assets/animation/');
+            const isComposite = typeof OffscreenCanvas === 'function' && image instanceof OffscreenCanvas;
+            if ((isArt || isComposite) && args.length === 8) {
+              pendingPaints++;
+              const [, , sw, sh, , , dw, dh] = args, matrix = this.getTransform();
+              const xScale = Math.hypot(matrix.a, matrix.b) * dw / sw, yScale = Math.hypot(matrix.c, matrix.d) * dh / sh;
+              maxUniformScaleError = Math.max(maxUniformScaleError, Math.abs(xScale / yScale - 1));
+            }
+            return original.call(this, image, ...args);
+          };
+          try {
+            for (let frame = 0; frame < 60; frame++) { timestamps.push(await new Promise(requestAnimationFrame)); positions.push(document.querySelector('#you-indicator').style.transform); const phase = document.body.dataset.phase; phaseCounts[phase] = (phaseCounts[phase] || 0) + 1; if (latestGround) groundSamples.push({ ...latestGround, phase, facing: document.body.dataset.facing }); if (pendingPaints) gameRenderedFrames++; maxSpriteDrawsPerFrame = Math.max(maxSpriteDrawsPerFrame, pendingPaints); pendingPaints = 0; }
+          } finally { ctx.drawImage = original; ctx.ellipse = originalEllipse; }
+          let manualMovementFrames = 0, manualDistanceWorld = 0;
+          for (let index = 1; index < groundSamples.length; index++) {
+            const previous = groundSamples[index - 1], current = groundSamples[index], dx = current.x - previous.x, dy = current.y - previous.y;
+            if (previous.phase !== 'rally' || current.phase !== 'rally' || current.facing !== expectedFacing) continue;
+            const directed = expectedFacing === 'right' ? dx > .1 && Math.abs(dy) < 1 : expectedFacing === 'left' ? dx < -.1 && Math.abs(dy) < 1 : expectedFacing === 'up' ? dy < -.1 && Math.abs(dx) < 1 : dy > .1 && Math.abs(dx) < 1;
+            if (directed) { manualMovementFrames++; manualDistanceWorld += Math.hypot(dx, dy); }
+          }
+          const intervals = timestamps.slice(1).map((time, index) => time - timestamps[index]), sorted = [...intervals].sort((a, b) => a - b);
+          return { frames: timestamps.length, distinctPlayerPositions: new Set(positions).size, movementObserved: positions.some(position => position !== initialPosition), manualMovementFrames, manualDistanceWorld, firstGroundPosition: groundSamples[0], lastGroundPosition: groundSamples.at(-1), phaseCounts, gameRenderedFrames, maxSpriteDrawsPerFrame, maxUniformScaleError, meanFrameMs: intervals.reduce((a, b) => a + b, 0) / intervals.length, p95FrameMs: sorted[Math.floor((sorted.length - 1) * .95)], renderedFacing: document.body.dataset.facing };
+        }, { initialPosition: before, expectedFacing: facing });
+        await motionPage.keyboard.up(key); const after = await motionPage.locator('#you-indicator').evaluate(element => element.style.transform);
+        runtime.push({ viewport, key, facing, initialPosition: before, finalPosition: after, ...frames });
+        await writeFile(motionReportPath, JSON.stringify({ ...authored, runtime, errors, responses }, null, 2));
+        expect(frames.manualMovementFrames, `${facing}: manual ground movement during consecutive rally frames`).toBeGreaterThanOrEqual(3); expect(frames.renderedFacing).toBe(facing);
+        expect(frames.gameRenderedFrames, `${facing}: actual player paints across 60 browser frames`).toBeGreaterThanOrEqual(55);
+        expect(frames.maxUniformScaleError, `${facing}: actual game whole-body scale`).toBeLessThan(1e-7);
+        expect(frames.meanFrameMs, `${facing}: mean rAF delivery`).toBeLessThan(25); expect(frames.p95FrameMs, `${facing}: p95 rAF delivery`).toBeLessThan(40);
+      }
     }
-    await motionPage.setViewportSize({ width: 393, height: 852 });
-    await motionPage.waitForTimeout(120);
     await motionPage.screenshot({ path: 'artifacts/motion-mobile-runtime.png', fullPage: false });
     expect(errors).toEqual([]); expect(responses).toEqual([]);
-    const report = { ...authored, runtime, errors, responses };
-    await writeFile('artifacts/motion-qa-results.json', JSON.stringify(report, null, 2));
-    console.log(JSON.stringify({ motions: true, characters: authored.characters.length, directionalMovementFrames: 2400, authoredActionFrames: 1800, runtime, errors, responses }));
+    const report = { ...authored, runtime, errors, responses }; await writeFile(motionReportPath, JSON.stringify(report, null, 2));
+    console.log(JSON.stringify({ motions: true, runtimeOnly, characters: authored.characters.length, directionalTimelineSamples: authored.characters.length * 4 * 4 * 60, authoredCuts: authored.characters.length * 4 * 4 * 6, blendOpacity: authored.blendOpacity?.overlap, runtime, errors, responses }));
   } finally { await motionContext.close(); await browser.close(); }
   process.exit(0);
 }
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1, hasTouch: true });
 await context.addInitScript(() => {
   const key = 'slay-beach-volley-v1';
-  if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ wins: 2, settings: { assist: true } }));
+  if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ character: 'tempest', partner: 'onyx', wins: 2, tourWins: 1, bestTraining: 12, settings: { assist: true } }));
   window.__volleySampleDecodes = 0;
+  const NativeImage = window.Image, allocated = []; let maximumSheets = 0;
+  const inventory = () => allocated.filter(image => image.getAttribute('src')?.includes('/assets/animation/'));
+  window.Image = function(...args) { const image = new NativeImage(...args); allocated.push(image); return image; };
+  window.Image.prototype = NativeImage.prototype; Object.setPrototypeOf(window.Image, NativeImage);
+  const source = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+  Object.defineProperty(HTMLImageElement.prototype, 'src', { ...source, set(value) { source.set.call(this, value); maximumSheets = Math.max(maximumSheets, inventory().length); } });
+  window.__volleyAnimationInventory = () => ({ maximumSheets, sheets: inventory().map(image => ({ source: image.src, complete: image.complete && image.naturalWidth > 0 })) });
   const Audio = window.AudioContext || window.webkitAudioContext;
   if (Audio) {
     const decode = Audio.prototype.decodeAudioData;
@@ -408,6 +359,15 @@ await context.addInitScript(() => {
   }
 });
 const page = await context.newPage();
+async function verifyAnimationInventory() {
+  const inventory = await page.evaluate(() => window.__volleyAnimationInventory());
+  const players = await page.locator('body').getAttribute('data-animation-players');
+  const ids = players.split(','); expect(new Set(ids).size).toBe(4);
+  expect(inventory.sheets).toHaveLength(16); expect(inventory.maximumSheets).toBeLessThanOrEqual(16);
+  expect(inventory.sheets.every(sheet => sheet.complete)).toBe(true);
+  expect(new Set(inventory.sheets.map(sheet => new URL(sheet.source).pathname.split('/').at(-1).replace(/-(run|toss|spike|block)\.webp$/, '')))).toEqual(new Set(ids));
+  return { activePlayers: ids, decodedSheets: inventory.sheets.length, maximumLiveSheets: inventory.maximumSheets };
+}
 async function snapshot(path) {
   // Let ResizeObserver and the canvas draw after a viewport or media change.
   await page.clock.runFor(90);
@@ -425,9 +385,13 @@ page.on('response', response => { if (response.status() >= 400) responses.push({
 await page.goto(gameURL);
 await page.waitForSelector('body[data-ready="true"]', { timeout: 30000 });
 await expect(page.locator('#game-canvas')).toHaveAttribute('data-scene', 'slay-stadium-v2');
-await expect(page.locator('#game-canvas')).toHaveAttribute('data-animation', 'directional-rig-60');
+await expect(page.locator('#game-canvas')).toHaveAttribute('data-animation', 'whole-sprite-60');
 const migratedSave = await page.evaluate(() => JSON.parse(localStorage.getItem('slay-beach-volley-v1')));
 expect(migratedSave.settings).not.toHaveProperty('assist'); expect(migratedSave.wins).toBe(2);
+expect(migratedSave.tourWins).toBe(1); expect(migratedSave.bestTraining).toBe(12);
+expect(migratedSave.character).toBe('tempest'); expect(migratedSave.partner).toBe('onyx');
+expect(await page.locator('.roster-item').count()).toBe(EXPECTED_ROSTER.length);
+const initialAnimationLoading = await verifyAnimationInventory();
 await expect(page.locator('#assist-setting')).toHaveCount(0);
 const longPressGuards = await page.evaluate(() => {
   const ui = ['#desktop-start', '.brand', '#help-button img', '.roster-item small', '.roster-item img', '#game-canvas', '#block-button span', '#spike-button span'];
@@ -452,13 +416,19 @@ if (process.argv.includes('--offline')) {
   if (!await page.evaluate(() => caches.has('other-game-cache'))) throw new Error('Other game cache was removed');
   await context.setOffline(true); await page.reload(); await page.waitForSelector('body[data-ready="true"]');
   await page.setViewportSize({ width: 393, height: 852 });
-  await page.getByRole('button', { name: '템페스트 선택', exact: true }).scrollIntoViewIfNeeded();
-  await page.getByRole('button', { name: '템페스트 선택', exact: true }).click();
+  const cacheSheets = await page.evaluate(async () => (await (await caches.open('slay-beach-volley-v8')).keys()).filter(request => /\/assets\/animation\/.*\.webp$/.test(request.url)).length);
+  expect(cacheSheets).toBe(EXPECTED_ROSTER.length * 4);
+  const offlineSelections = [];
+  for (const character of EXPECTED_ROSTER) {
+    const button = page.getByRole('button', { name: `${character.ko} 선택`, exact: true });
+    await button.scrollIntoViewIfNeeded(); await button.click(); await page.waitForSelector('body[data-players-ready="true"]');
+    offlineSelections.push({ character: character.id, ...await verifyAnimationInventory() });
+  }
   await page.getByRole('button', { name: '경기 시작', exact: true }).click(); await page.waitForSelector('body[data-phase="rally"]');
   await expect.poll(() => page.evaluate(() => window.__volleySampleDecodes)).toBe(4);
   await snapshot('artifacts/offline-game.png');
-  console.log(JSON.stringify({ offline: true, sampledAudioDecoded: 4, unrelatedCachePreserved: true, phase: await page.locator('body').getAttribute('data-phase'), errors, responses }));
-  await writeFile('artifacts/offline-qa-results.json', JSON.stringify({ offline: true, sampledAudioDecoded: 4, unrelatedCachePreserved: true, errors, responses }, null, 2));
+  console.log(JSON.stringify({ offline: true, cachedAnimationSheets: cacheSheets, offlineSelections, sampledAudioDecoded: 4, unrelatedCachePreserved: true, phase: await page.locator('body').getAttribute('data-phase'), errors, responses }));
+  await writeFile('artifacts/offline-qa-results.json', JSON.stringify({ offline: true, cachedAnimationSheets: cacheSheets, offlineSelections, sampledAudioDecoded: 4, unrelatedCachePreserved: true, errors, responses }, null, 2));
   await browser.close(); process.exit(0);
 }
 await snapshot('artifacts/desktop-lobby.png');
@@ -541,14 +511,33 @@ for (const [width, height] of sizes) {
 }
 console.log(JSON.stringify({ layouts }));
 await page.setViewportSize({ width: 393, height: 852 });
-for (const name of ['노바','레이븐','발키리','바이퍼','엠버','아틀라스','세라프','링스','템페스트','오닉스']) {
+for (const { ko: name } of EXPECTED_ROSTER) {
   const button = page.getByRole('button', { name: `${name} 선택`, exact: true });
   await button.scrollIntoViewIfNeeded(); await button.click(); await expect(button).toHaveAttribute('aria-pressed', 'true');
+  await page.waitForSelector('body[data-players-ready="true"]'); await verifyAnimationInventory();
 }
+await page.evaluate(ids => { for (const id of ids) document.querySelector(`[data-character="${id}"]`).click(); }, EXPECTED_ROSTER.map(character => character.id));
+await page.waitForSelector('body[data-players-ready="true"]');
+const rapidSelectionLoading = await verifyAnimationInventory();
 await page.reload(); await page.waitForSelector('body[data-ready="true"]');
-await expect(page.getByRole('button', { name: '오닉스 선택', exact: true })).toHaveAttribute('aria-pressed','true');
-console.log('All 10 characters can be selected; selection persists after reload.');
+await expect(page.getByRole('button', { name: `${EXPECTED_ROSTER.at(-1).ko} 선택`, exact: true })).toHaveAttribute('aria-pressed','true');
+console.log('All original characters can be selected; selection persists after reload.');
+await page.setViewportSize({ width: 1440, height: 1000 });
+const beforePartner = await page.evaluate(() => JSON.parse(localStorage.getItem('slay-beach-volley-v1')));
 await page.getByRole('button', { name: /함께 뛸 파트너:/ }).click();
+await page.waitForSelector('body[data-players-ready="true"]');
+const afterPartner = await page.evaluate(() => JSON.parse(localStorage.getItem('slay-beach-volley-v1')));
+expect(afterPartner.character).toBe(beforePartner.character); expect(afterPartner.partner).not.toBe(beforePartner.partner);
+await verifyAnimationInventory();
+const partnerChoices = [afterPartner.partner];
+for (let index = 1; index < EXPECTED_ROSTER.length - 1; index++) {
+  await page.getByRole('button', { name: /함께 뛸 파트너:/ }).click(); await page.waitForSelector('body[data-players-ready="true"]');
+  const choice = await page.evaluate(() => JSON.parse(localStorage.getItem('slay-beach-volley-v1')));
+  expect(choice.character).toBe(beforePartner.character); expect(choice.partner).not.toBe(choice.character); partnerChoices.push(choice.partner);
+  await verifyAnimationInventory();
+}
+expect(new Set(partnerChoices).size).toBe(EXPECTED_ROSTER.length - 1); expect(partnerChoices.at(-1)).toBe(beforePartner.partner);
+await page.setViewportSize({ width: 393, height: 852 });
 await page.getByRole('button', { name: '게임 설정', exact: true }).click();
 await page.locator('#music-setting').uncheck(); await page.locator('#sfx-setting').uncheck();
 await page.getByRole('button', { name: '설정 완료' }).click();
@@ -599,6 +588,6 @@ await page.setViewportSize({ width: 1440, height: 1000 });
 await snapshot('artifacts/desktop-dark.png');
 await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'no-preference' });
 await snapshot('artifacts/desktop-lobby.png');
-await writeFile('artifacts/browser-qa-results.json', JSON.stringify({ errors, responses, layouts, longPressGuards, sampledAudioDecoded: 4, checked: ['three physically lit Blender stadiums and calibrated 2D scene','four sampled volleyball sounds decoded after a real play gesture','ordinary mobile button long press without native popup','10 original characters','manual movement stops when input is released','legacy movement assistance removed without losing records','keyboard movement and block','800 ms touch charge without selection or popup','automatic jump and real manual spike after manual positioning','charge button','joystick pointer capture','pause and resume','persistent character and settings','help modal','60 second practice and result','dark mode','reduced motion'] }, null, 2));
+await writeFile('artifacts/browser-qa-results.json', JSON.stringify({ errors, responses, layouts, longPressGuards, initialAnimationLoading, rapidSelectionLoading, partnerChoices, sampledAudioDecoded: 4, checked: ['three physically lit Blender stadiums and calibrated 2D scene','four sampled volleyball sounds decoded after a real play gesture','ordinary mobile button long press without native popup','all ten original characters with whole-body action artwork','manual movement stops when input is released','legacy movement assistance removed without losing records','keyboard movement and block','800 ms touch charge without selection or popup','automatic jump and real manual spike after manual positioning','charge button','joystick pointer capture','pause and resume','persistent character and settings','help modal','60 second practice and result','dark mode','reduced motion'] }, null, 2));
 if(errors.length || responses.length) throw new Error(JSON.stringify({errors,responses}));
 await browser.close();

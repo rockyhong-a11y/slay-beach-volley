@@ -2,7 +2,7 @@ import { COURTS } from './roster.js';
 import { playerCue, predictLanding } from './engine.js';
 import { COURT_SCENE } from './court-scene.js';
 import { ImpactEffects } from './impact-effects.js';
-import { CharacterAnimator, SD_ANATOMY, headCrownExtent } from './character-motion.js';
+import { SpriteAnimator, SPRITE_HEIGHT } from './sprite-animation.js';
 
 const TAU = Math.PI * 2;
 export async function loadCourtImages() {
@@ -24,15 +24,15 @@ export function projectCourtPoint(x, y, z, width, height) {
   return { x: dot(mx) / depth / COURT_SCENE.width * width, y: dot(my) / depth / COURT_SCENE.height * height, scale: Math.max(.6, Math.min(1.32, COURT_SCENE.referenceDepth / depth)) };
 }
 export class Renderer {
-  constructor(canvas, images, manifest, { reducedMotion = false, shake = true, courtImages = [], motionImages = {}, motionManifest = {} } = {}) {
+  constructor(canvas, images, manifest, { reducedMotion = false, shake = true, courtImages = [], animationImages = {}, animationManifest = {} } = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
     this.images = images;
     this.manifest = manifest;
     this.courtImages = courtImages;
-    this.motionImages = motionImages;
-    this.motionManifest = motionManifest;
-    this.animator = new CharacterAnimator();
+    this.animationImages = animationImages;
+    this.animationManifest = animationManifest;
+    this.animator = new SpriteAnimator();
     this.effects = new ImpactEffects({ reducedMotion });
     this.reducedMotion = reducedMotion;
     this.allowShake = shake;
@@ -43,7 +43,7 @@ export class Renderer {
     this.netWobble = 0;
     this.lastTime = 0;
     this.canvas.dataset.scene = COURT_SCENE.id;
-    this.canvas.dataset.animation = 'directional-rig-60';
+    this.canvas.dataset.animation = 'whole-sprite-60';
     this.resize();
   }
   resize() {
@@ -89,10 +89,9 @@ export class Renderer {
     if (background?.naturalWidth) ctx.drawImage(background, 0, 0, w, h);
   }
   actor(ctx, actor, time, state) {
-    const image = this.motionImages[actor.id], character = this.motionManifest.characters?.[actor.id];
-    if (!image?.naturalWidth || !character) return;
-    const facing = actor.facing || (actor.team === 0 ? 'up' : 'down');
-    const head = this.animator.draw(ctx, actor, state, { image, view: character.views[facing], project: (x, y, z) => this.project(x, y, z), reducedMotion: this.reducedMotion });
+    const images = this.animationImages[actor.id], character = this.animationManifest.characters?.[actor.id];
+    if (!images || !character) return;
+    const head = this.animator.draw(ctx, actor, state, { images, character, project: (x, y, z) => this.project(x, y, z), reducedMotion: this.reducedMotion });
     const base = this.project(actor.x, actor.y);
     if (actor.index === 0) { ctx.strokeStyle = '#147a6580'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.ellipse(base.x, base.y + 2, 13, 4, 0, 0, TAU); ctx.stroke(); }
     if (actor.index === 1) { ctx.fillStyle = '#467f7299'; ctx.font = `600 ${Math.max(6, this.w * .016)}px Outfit`; ctx.textAlign = 'center'; ctx.fillText('PARTNER', head.x, head.y - 6); }
@@ -170,8 +169,8 @@ export class Renderer {
     this.ball(ctx, state.ball, cue === 'spike');
     ctx.restore();
     // Keep the player marker steady through breathing and arm/torso motion.
-    const player = state.actors[0], view = this.motionManifest.characters?.[player.id]?.views[player.facing];
-    const p = project(player.x, player.y, player.z + SD_ANATOMY.pelvis + SD_ANATOMY.torso + headCrownExtent(view));
+    const player = state.actors[0];
+    const p = project(player.x, player.y, player.z + SPRITE_HEIGHT);
     return { ...p, y: p.y - 9 };
   }
 }

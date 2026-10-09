@@ -1,9 +1,9 @@
 {
   "upgrade": true,
-  "staleV6ResponseSeen": true,
+  "staleV7ResponseSeen": true,
   "freshInstallNavigations": 1,
   "upgradeNavigations": 2,
-  "existingV6Navigations": 1,
+  "existingV7Navigations": 1,
   "legacyRemoved": true,
   "currentPresent": true,
   "unrelatedPreserved": true,

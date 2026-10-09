@@ -111,12 +111,43 @@
       }
     ]
   },
+  "initialAnimationLoading": {
+    "activePlayers": [
+      "tempest",
+      "onyx",
+      "raven",
+      "valkyrie"
+    ],
+    "decodedSheets": 16,
+    "maximumLiveSheets": 16
+  },
+  "rapidSelectionLoading": {
+    "activePlayers": [
+      "onyx",
+      "nova",
+      "raven",
+      "valkyrie"
+    ],
+    "decodedSheets": 16,
+    "maximumLiveSheets": 16
+  },
+  "partnerChoices": [
+    "raven",
+    "valkyrie",
+    "viper",
+    "ember",
+    "atlas",
+    "seraph",
+    "lynx",
+    "tempest",
+    "nova"
+  ],
   "sampledAudioDecoded": 4,
   "checked": [
     "three physically lit Blender stadiums and calibrated 2D scene",
     "four sampled volleyball sounds decoded after a real play gesture",
     "ordinary mobile button long press without native popup",
-    "10 original characters",
+    "all ten original characters with whole-body action artwork",
     "manual movement stops when input is released",
     "legacy movement assistance removed without losing records",
     "keyboard movement and block",

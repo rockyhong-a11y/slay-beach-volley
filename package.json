@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "A portrait-first 2D beach volleyball arcade game featuring the ten original SLAY characters.",
+  "description": "A portrait-first 2D beach volleyball arcade game with all ten original SLAY characters and newly drawn full-body volleyball animation frames.",
   "scripts": {
     "dev": "node server.mjs",
     "build": "node build.mjs",
