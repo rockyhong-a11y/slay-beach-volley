@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+test-results/
+playwright-report/
+artifacts/reference-*
+artifacts/font-*
+artifacts/*.report.html
+artifacts/source-game.js
+assets/sprites/*.png
+assets/fonts/DoHyeon-Regular.ttf

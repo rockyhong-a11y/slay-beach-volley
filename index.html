@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#116f66" />
+    <meta name="description" content="모래 위에서, 한 방 더. SLAY 원본 선수 10명과 즐기는 모바일 2대2 비치발리볼. 점프하고, 타이밍을 맞추고, 스파이크!" />
+    <meta property="og:title" content="SLAY Beach Volley" />
+    <meta property="og:description" content="10명의 선수. 하나의 해변. 당신의 다음 스파이크." />
+    <title>SLAY Beach Volley | 모래 위에서, 한 방 더</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="preload" href="./assets/fonts/Outfit.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./assets/fonts/DoHyeon-subset.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="./assets/portraits/raven.webp" as="image" fetchpriority="high" />
+    <link rel="preload" href="./assets/portraits/valkyrie.webp" as="image" fetchpriority="high" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="./" aria-label="SLAY. BEACH VOLLEY 홈">
+          <span class="brand-mark" aria-hidden="true"><img width="45" height="45" src="./favicon.svg" alt="" /></span>
+          <span class="brand-type"><strong>SLAY<span class="brand-dot" aria-hidden="true">.</span></strong><small>BEACH VOLLEY</small></span>
+        </a>
+        <div class="header-caption">A LITTLE SAND. A BIG SPIKE.</div>
+        <div class="header-actions">
+          <button class="icon-button" id="sound-toggle" aria-label="소리 끄기" aria-pressed="false"><img width="24" height="24" src="./assets/icons/speaker-high.svg" alt="" /></button>
+          <button class="icon-button" id="help-button" aria-label="조작 방법"><img width="24" height="24" src="./assets/icons/question.svg" alt="" /></button>
+          <button class="icon-button" id="settings-button" aria-label="게임 설정"><img width="24" height="24" src="./assets/icons/gear.svg" alt="" /></button>
+          <button class="icon-button pause-button" id="pause-button" aria-label="일시정지" hidden><img width="24" height="24" src="./assets/icons/pause.svg" alt="" /></button>
+        </div>
+      </header>
+
+      <main class="main-layout" id="main">
+        <section class="intro-panel" aria-label="비치발리볼 소개">
+          <div class="intro-top"><span class="eyebrow">THE BEACH IS YOURS</span><span class="intro-ball"><img width="24" height="24" src="./assets/icons/volleyball.svg" alt="" /></span></div>
+          <h1>모래 위에서,<br /><span>한 방 더.</span></h1>
+          <p class="intro-copy">발끝엔 모래, 손끝엔 스파이크.<br />SLAY 선수들과 가볍게 한 게임!</p>
+          <div class="mode-select" role="group" aria-label="게임 모드">
+            <button class="mode-button active" data-mode="quick" aria-pressed="true"><img width="24" height="24" src="./assets/icons/lightning.svg" alt="" /><span>빠른 경기<small>2대2 · 7점 선승</small></span><img width="24" height="24" class="mode-check" src="./assets/icons/check.svg" alt="" /></button>
+            <button class="mode-button" data-mode="tour" aria-pressed="false"><img width="24" height="24" src="./assets/icons/trophy.svg" alt="" /><span>비치 투어<small>3개의 해변을 정복하세요</small></span><img width="24" height="24" class="mode-check" src="./assets/icons/check.svg" alt="" /></button>
+            <button class="mode-button" data-mode="training" aria-pressed="false"><img width="24" height="24" src="./assets/icons/game-controller.svg" alt="" /><span>타이밍 연습<small>60초 동안 스파이크!</small></span><img width="24" height="24" class="mode-check" src="./assets/icons/check.svg" alt="" /></button>
+          </div>
+          <button class="primary-button desktop-start" id="desktop-start"><span>비치로 출발</span><img width="24" height="24" src="./assets/icons/arrow-right.svg" alt="" /></button>
+          <div class="keyboard-guide"><span><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></span><p>이동 <b>SPACE</b> 점프<br /><b>J</b> 스파이크</p></div>
+          <div class="personal-record"><img width="24" height="24" src="./assets/icons/trophy.svg" alt="" /><div><span>나의 비치 기록</span><strong id="wins-label">첫 승을 기다리는 중</strong></div></div>
+        </section>
+
+        <section class="game-panel" aria-label="비치발리볼 코트">
+          <div class="court-heading"><div><img width="24" height="24" src="./assets/icons/sun.svg" alt="" /><span id="court-name">CORAL BEACH</span></div><span class="court-pill" id="court-badge">2 VS 2</span></div>
+          <div class="arena-wrap" id="arena-wrap">
+            <div class="scoreboard" id="scoreboard">
+              <div class="score-team ours"><span id="team-name">NOVA & SERAPH</span><small>YOUR TEAM</small></div>
+              <div class="score-numbers"><strong id="our-score">0</strong><span>:</span><strong id="their-score">0</strong></div>
+              <div class="score-team theirs"><span id="opponent-name">RAVEN & VALKYRIE</span><small>RIVAL TEAM</small></div>
+            </div>
+            <canvas id="game-canvas" width="480" height="580" tabindex="0" aria-label="2대2 비치발리볼 코트. 방향키 또는 W A S D로 이동, 스페이스로 점프, J로 스파이크."></canvas>
+            <div class="match-label" id="match-label"><span class="preview-dot"></span>몸 푸는 중. 준비되면 시작!</div>
+            <div class="game-callout" id="game-callout" aria-hidden="true"><strong>PERFECT!</strong><small>완벽한 타이밍</small></div>
+            <div class="countdown" id="countdown" aria-hidden="true"></div>
+            <div class="load-status" id="load-status" role="status"><span></span><small>선수들이 해변으로 오는 중...</small></div>
+            <div class="power-meter" id="power-meter" hidden><span>SPIKE POWER</span><div><i id="power-fill"></i></div></div>
+            <span class="you-indicator" id="you-indicator">YOU</span>
+          </div>
+
+          <div class="lobby-dock" id="lobby-dock">
+            <button class="mobile-mode" id="mobile-mode"><img width="24" height="24" src="./assets/icons/lightning.svg" alt="" /><span id="mobile-mode-label">빠른 경기</span><small>변경</small></button>
+            <button class="primary-button mobile-start" id="mobile-start"><span>경기 시작</span><img width="24" height="24" src="./assets/icons/arrow-right.svg" alt="" /></button>
+          </div>
+          <div class="game-controls" id="game-controls" hidden>
+            <div class="joystick" id="joystick" role="group" aria-label="이동 스틱. 방향키로도 이동할 수 있습니다."><span class="joystick-cross"></span><span class="joystick-thumb" id="joystick-thumb"></span><small>이동</small></div>
+            <div class="control-tip" id="control-tip">공 아래로 이동<br /><strong>점프 후 스파이크!</strong></div>
+            <div class="action-buttons">
+              <button class="action jump" id="jump-button" aria-label="점프"><img width="24" height="24" src="./assets/icons/arrow-up.svg" alt="" /><span>점프</span><small>SPACE</small></button>
+              <button class="action spike" id="spike-button" aria-label="스파이크. 길게 눌렀다 놓으면 더 강하게 공격합니다."><img width="24" height="24" src="./assets/icons/lightning.svg" alt="" /><span>스파이크</span><small>HOLD / J</small></button>
+            </div>
+          </div>
+          <div class="court-footer"><span id="court-tag">파도와 함께, 첫 번째 랠리</span><div class="court-switch"><button id="previous-court" aria-label="이전 해변"><img width="24" height="24" src="./assets/icons/arrow-left.svg" alt="" /></button><span id="court-index">1 / 3</span><button id="next-court" aria-label="다음 해변"><img width="24" height="24" src="./assets/icons/arrow-right.svg" alt="" /></button></div></div>
+        </section>
+
+        <aside class="roster-panel" id="roster-panel" aria-label="선수 선택">
+          <div class="roster-heading"><h2>나의 선수</h2><span>10 PLAYERS</span></div>
+          <div class="selected-player" id="selected-player"><div class="selected-art"><canvas id="selected-art" width="260" height="290" aria-label="선택한 노바 선수"></canvas><span class="selected-art-word" aria-hidden="true">NOVA</span></div><div class="selected-caption"><div><small id="selected-role">올라운드 에이스</small><h3 id="selected-name">NOVA <span>노바</span></h3></div><span class="selected-badge"><img width="24" height="24" src="./assets/icons/check.svg" alt="선택됨" /></span></div></div>
+          <div class="roster-grid" id="roster-grid" role="group" aria-label="10명의 원본 SLAY 선수"></div>
+          <div class="player-abilities" id="player-abilities"><div><span>파워</span><i id="stat-power"></i></div><div><span>스피드</span><i id="stat-speed"></i></div><div><span>점프</span><i id="stat-jump"></i></div></div>
+          <div class="player-skill"><img width="24" height="24" src="./assets/icons/lightning.svg" alt="" /><div><strong id="selected-skill">플래시 스파이크</strong><p id="selected-description">빠른 발과 균형 잡힌 점프. 첫 경기부터 가볍게.</p></div></div>
+          <div class="partner-select"><span>함께 뛸 파트너</span><button id="partner-button"><canvas id="partner-avatar" width="60" height="60" aria-hidden="true"></canvas><strong id="partner-name">세라프</strong><img width="24" height="24" src="./assets/icons/arrow-clockwise.svg" alt="파트너 변경" /></button></div>
+        </aside>
+      </main>
+      <footer class="page-footer"><span>GOOD VIBES. GREAT RALLIES.</span><a href="https://github.com/rockyhong-a11y/slay-beach-volley" target="_blank" rel="noreferrer">Made for the beach <span>↗</span></a></footer>
+    </div>
+
+    <dialog id="help-dialog" class="modal">
+      <button class="modal-close icon-button" data-close aria-label="닫기"><img width="24" height="24" src="./assets/icons/x.svg" alt="" /></button>
+      <span class="eyebrow">LET’S PLAY</span><h2>가볍게, 한 게임!</h2><p>파트너가 토스하면, 공 아래로 들어가<br />점프하고 타이밍에 맞춰 스파이크!</p>
+      <div class="help-steps"><div><img width="24" height="24" src="./assets/icons/game-controller.svg" alt="" /><strong>공 아래로 이동</strong><p>스틱 또는 방향키 · WASD<br />자동 이동 보조가 도와줘요.</p></div><div><img width="24" height="24" src="./assets/icons/arrow-up.svg" alt="" /><strong>높이 점프</strong><p>점프 버튼 또는 SPACE<br />토스가 내려올 때 뛰어보세요.</p></div><div><img width="24" height="24" src="./assets/icons/lightning.svg" alt="" /><strong>스파이크!</strong><p>스파이크 버튼 또는 J<br />길게 눌렀다 놓으면 강타!</p></div></div>
+      <div class="rules-note">2대2, 최대 3회 터치, 같은 선수의 연속 터치는 금지. 상대 코트에 공을 떨어뜨리면 1점, 네트에 걸리거나 아웃이면 상대 점수. 빠른 경기는 7점 선승입니다.</div><button class="primary-button" data-close>좋아, 해볼게요 <img width="24" height="24" src="./assets/icons/arrow-right.svg" alt="" /></button>
+    </dialog>
+
+    <dialog id="settings-dialog" class="modal">
+      <button class="modal-close icon-button" data-close aria-label="닫기"><img width="24" height="24" src="./assets/icons/x.svg" alt="" /></button>
+      <span class="eyebrow">YOUR GAME, YOUR WAY</span><h2>게임 설정</h2>
+      <label class="setting-row"><span><strong>이동·리시브 보조</strong><small>공 아래로 이동하고 낮은 공을 받아줘요</small></span><input id="assist-setting" type="checkbox" checked /></label>
+      <label class="setting-row"><span><strong>효과음</strong><small>스파이크, 점프, 모래 소리</small></span><input id="sfx-setting" type="checkbox" checked /></label>
+      <label class="setting-row"><span><strong>해변 배경음</strong><small>파도와 가벼운 마림바 리듬</small></span><input id="music-setting" type="checkbox" checked /></label>
+      <label class="setting-row"><span><strong>타격 진동</strong><small>진동을 지원하는 모바일에서 작동해요</small></span><input id="haptics-setting" type="checkbox" checked /></label>
+      <label class="setting-row"><span><strong>화면 흔들림</strong><small>강타 때 코트가 짧게 흔들려요</small></span><input id="shake-setting" type="checkbox" checked /></label>
+      <label class="setting-row"><span><strong>상대 난이도</strong><small>빠른 경기에 적용돼요</small></span><select id="difficulty-setting"><option value="0">가볍게</option><option value="1" selected>보통</option><option value="2">도전</option></select></label>
+      <p class="save-note">선수 선택, 설정, 승리 기록은 이 기기에 저장됩니다.</p><button class="primary-button" data-close>설정 완료 <img width="24" height="24" src="./assets/icons/check.svg" alt="" /></button>
+    </dialog>
+
+    <dialog id="mode-dialog" class="modal">
+      <button class="modal-close icon-button" data-close aria-label="닫기"><img width="24" height="24" src="./assets/icons/x.svg" alt="" /></button><span class="eyebrow">PICK YOUR PLAY</span><h2>어떤 경기로 갈까요?</h2><div class="mode-select">
+        <button class="mode-button" data-mode="quick"><img width="24" height="24" src="./assets/icons/lightning.svg" alt="" /><span>빠른 경기<small>2대2 · 7점 선승</small></span></button><button class="mode-button" data-mode="tour"><img width="24" height="24" src="./assets/icons/trophy.svg" alt="" /><span>비치 투어<small>3개의 해변에서 연속 승부</small></span></button><button class="mode-button" data-mode="training"><img width="24" height="24" src="./assets/icons/game-controller.svg" alt="" /><span>타이밍 연습<small>60초 동안 실력 다지기</small></span></button>
+      </div>
+    </dialog>
+
+    <dialog id="pause-dialog" class="modal pause-modal"><span class="eyebrow">TAKE A BREATHER</span><h2>잠깐, 쉬어가요.</h2><p>해변은 기다려줄 거예요.</p><button class="primary-button" id="resume-button">경기 계속 <img width="24" height="24" src="./assets/icons/play.svg" alt="" /></button><button class="secondary-button" id="restart-button">다시 시작</button><button class="text-button" id="home-button">선수 선택으로</button></dialog>
+
+    <dialog id="result-dialog" class="modal result-modal"><div class="result-icon"><img width="24" height="24" src="./assets/icons/trophy.svg" alt="" /></div><span class="eyebrow" id="result-eyebrow">WHAT A GAME!</span><h2 id="result-title">해변의 승자는, 당신!</h2><p id="result-message">멋진 스파이크였어요.</p><div class="result-score" id="result-score">7 <span>:</span> 4</div><div class="result-stats"><div><strong id="result-spikes">0</strong><span>스파이크</span></div><div><strong id="result-perfects">0</strong><span>퍼펙트</span></div><div><strong id="result-rally">0</strong><span>최장 랠리</span></div></div><button class="primary-button" id="result-play">한 게임 더 <img width="24" height="24" src="./assets/icons/arrow-right.svg" alt="" /></button><button class="text-button" id="result-home">선수 선택으로</button></dialog>
+    <div class="toast" id="toast" role="status"></div>
+    <div class="sr-only" id="announcer" role="status" aria-live="polite"></div>
+    <noscript>이 게임은 JavaScript가 필요합니다. 브라우저에서 JavaScript를 활성화해주세요.</noscript>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,60 @@
+{
+  "errors": [],
+  "responses": [],
+  "layouts": [
+    {
+      "width": 320,
+      "height": 568,
+      "documentWidth": 320,
+      "documentHeight": 569,
+      "startVisible": true
+    },
+    {
+      "width": 320,
+      "height": 720,
+      "documentWidth": 320,
+      "documentHeight": 721,
+      "startVisible": true
+    },
+    {
+      "width": 360,
+      "height": 780,
+      "documentWidth": 360,
+      "documentHeight": 781,
+      "startVisible": true
+    },
+    {
+      "width": 393,
+      "height": 852,
+      "documentWidth": 393,
+      "documentHeight": 853,
+      "startVisible": true
+    },
+    {
+      "width": 430,
+      "height": 932,
+      "documentWidth": 430,
+      "documentHeight": 933,
+      "startVisible": true
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "documentWidth": 844,
+      "documentHeight": 390,
+      "startVisible": true
+    }
+  ],
+  "checked": [
+    "10 original characters",
+    "keyboard movement and jump",
+    "charge button",
+    "joystick pointer capture",
+    "pause and resume",
+    "persistent character and settings",
+    "help modal",
+    "60 second practice and result",
+    "dark mode",
+    "reduced motion"
+  ]
+}

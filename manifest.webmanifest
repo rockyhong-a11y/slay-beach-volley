@@ -1,0 +1,13 @@
+{
+  "name": "SLAY Beach Volley",
+  "short_name": "SLAY Volley",
+  "description": "원본 SLAY 선수 10명과 함께하는 2대2 비치발리볼",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f6f3",
+  "theme_color": "#116f66",
+  "icons": [{ "src": "./favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

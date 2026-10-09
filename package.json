@@ -1,0 +1,23 @@
+{
+  "name": "slay-beach-volley",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A portrait-first 2D beach volleyball arcade game featuring the ten original SLAY characters.",
+  "scripts": {
+    "dev": "node server.mjs",
+    "build": "node build.mjs",
+    "preview": "node server.mjs --dist",
+    "test": "node --test tests/engine.test.mjs",
+    "test:browser": "node artifacts/browser-qa.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@phosphor-icons/core": "^2.1.1",
+    "@playwright/test": "^1.64.0",
+    "esbuild": "^0.28.2",
+    "lighthouse": "^13.5.0"
+  }
+}
