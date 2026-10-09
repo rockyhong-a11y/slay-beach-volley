@@ -18,12 +18,68 @@ from PIL import Image, ImageDraw
 ROOT = Path(__file__).resolve().parents[1]
 IDS = ('nova', 'raven', 'valkyrie', 'viper', 'ember', 'atlas', 'seraph', 'lynx', 'tempest', 'onyx')
 VIEWS = ('down', 'up', 'left', 'right')
-HAIR_LENGTH = {'nova': 180, 'raven': 185, 'valkyrie': 110, 'viper': 185,
-               'ember': 185, 'atlas': 110, 'seraph': 190, 'lynx': 110,
+HAIR_LENGTH = {'nova': 180, 'raven': 185, 'valkyrie': 130, 'viper': 185,
+               'ember': 185, 'atlas': 130, 'seraph': 190, 'lynx': 130,
                'tempest': 180, 'onyx': 190}
 LEFT_MIRROR = {'ember': False, 'atlas': False, 'seraph': False,
                'lynx': False, 'tempest': False, 'onyx': False}
 HEAD_MIRROR = {'raven': {'left': False}}
+
+# Reviewed against the 1024 x 1536 authoring atlases. Alpha bounds are not
+# anatomical landmarks: loose curls or ponytail tips can lie below the neck,
+# while a bun can extend above the skull. Using them as joint endpoints shrinks
+# the face and even rotates a head toward an unrelated strand of hair.
+# Each entry is the painted neck centre (x, y), then the skull-crown y. Keeping
+# the axis vertical preserves the artist's profile rather than rotating it to
+# compensate for the rear hair mass. The separate hair row owns long tails.
+HEAD_CORE_HEIGHT = 112
+HEAD_LANDMARKS = {
+    'nova': {'down': (141, 218, 53), 'up': (391, 218, 53),
+             'left': (637, 218, 54), 'right': (892, 218, 55)},
+    'raven': {'down': (143, 226, 54), 'up': (390, 226, 51),
+              'left': (625, 227, 53), 'right': (891, 227, 52)},
+    'valkyrie': {'down': (149, 233, 49), 'up': (394, 230, 51),
+                 'left': (643, 232, 52), 'right': (899, 234, 54)},
+    'viper': {'down': (152, 199, 27), 'up': (407, 197, 27),
+              'left': (643, 197, 27), 'right': (899, 197, 27)},
+    'ember': {'down': (133, 208, 35), 'up': (389, 211, 34),
+              'left': (623, 207, 40), 'right': (906, 206, 40)},
+    'atlas': {'down': (131, 227, 60), 'up': (386, 226, 60),
+              'left': (640, 224, 65), 'right': (907, 223, 65)},
+    'seraph': {'down': (138, 244, 76), 'up': (394, 241, 78),
+               'left': (615, 240, 90), 'right': (912, 240, 88)},
+    'lynx': {'down': (132, 226, 45), 'up': (387, 220, 46),
+             'left': (644, 224, 47), 'right': (891, 224, 45)},
+    'tempest': {'down': (143, 243, 87), 'up': (383, 242, 94),
+                'left': (613, 238, 100), 'right': (930, 242, 99)},
+    'onyx': {'down': (129, 219, 71), 'up': (386, 221, 71),
+             'left': (604, 219, 67), 'right': (926, 219, 68)},
+}
+# Preserve the complete natural crown and side silhouette, including decorative
+# buns. Their extent is never the size axis: only the reviewed skull landmarks
+# determine head scale. Trim bottom tails only, where the separate hair layer
+# continues them. Cutting a crown to the skull axis creates a visible flat top.
+# Short hairstyles retain their original crop and simply receive real joints.
+HEAD_CORE_WINDOWS = {
+    'ember': {'down': (21, 22, 247, 219), 'up': (277, 22, 498, 222),
+              'left': (534, 28, 748, 219), 'right': (775, 28, 997, 220)},
+    'seraph': {'down': (24, 19, 236, 252), 'up': (303, 19, 489, 249),
+               'left': (517, 19, 756, 252), 'right': (768, 21, 1010, 252)},
+    'tempest': {'down': (11, 28, 236, 251), 'up': (297, 34, 473, 251),
+                'left': (512, 31, 758, 251), 'right': (769, 31, 1017, 251)},
+    'onyx': {'down': (33, 20, 224, 232), 'up': (307, 20, 461, 229),
+             'left': (530, 19, 747, 230), 'right': (787, 19, 1006, 230)},
+}
+# Some painted curls and braid tips cross into the next atlas column. These
+# reviewed windows keep the complete intended hair, excluding disconnected
+# pieces belonging to its neighbour; the authoring image remains untouched.
+HAIR_WINDOWS = {
+    'raven': {'up': (274, 244, 512, 469)},
+    'viper': {'up': (285, 233, 512, 483), 'left': (538, 235, 768, 482)},
+}
+# The same column bleed occurs between Viper's paired legs. Exclude the left
+# leg's tip before deriving both overlapping cuts of the right leg.
+LEG_MIN_X = {'viper': {'up': {'R': 414}, 'left': {'R': 657}}}
 
 
 def threshold(alpha, level=16):
@@ -80,6 +136,17 @@ def part(alpha, rect, pivot_y, tip_y):
     return {'rect': rect, 'pivot': centerline(alpha, rect, pivot_y), 'tip': centerline(alpha, rect, tip_y)}
 
 
+def reviewed_head(alpha, identifier, facing, source_rect):
+    window = HEAD_CORE_WINDOWS.get(identifier, {}).get(facing)
+    rect = bounds(alpha, window) if window else source_rect
+    x, y, width, height = rect
+    neck_x, neck_y, crown_y = HEAD_LANDMARKS[identifier][facing]
+    return {'rect': rect, 'pivot': [neck_x - x, neck_y - y],
+            'tip': [neck_x - x, crown_y - y],
+            'headCoreRect': rect[:], 'headCoreWorldHeight': HEAD_CORE_HEIGHT,
+            'sourceRect': source_rect[:]}
+
+
 def split_limb(alpha, rect, fraction):
     x, y, width, height = rect
     joint_y = y + height * fraction
@@ -119,17 +186,21 @@ def pack_character(identifier, previous=None):
         x0, x1 = round(column * image.width / 4), round((column + 1) * image.width / 4)
         row_rects = [bounds(alpha, (x0, y0, x1, y1)) for y0, y1 in rows]
         head, hair, body = row_rects[:3]
+        hair_window = HAIR_WINDOWS.get(identifier, {}).get(name)
+        if hair_window:
+            hair = bounds(alpha, hair_window)
         parts = {
-            'head': part(alpha, head, head[1] + head[3] * .97, head[1] + head[3] * .04),
+            'head': reviewed_head(alpha, identifier, name, head),
             'body': part(alpha, body, body[1] + body[3] * .97, body[1] + body[3] * .06),
-            'hair': part(alpha, hair, hair[1] + hair[3] * (95 / HAIR_LENGTH[identifier]), hair[1] + hair[3] * .97),
+            'hair': part(alpha, hair, hair[1] + hair[3] * (HEAD_CORE_HEIGHT / HAIR_LENGTH[identifier]), hair[1] + hair[3] * .97),
         }
         if name in HEAD_MIRROR.get(identifier, {}):
             parts['head']['mirror'] = HEAD_MIRROR[identifier][name]
         for side, region in (('L', (x0, (x0 + x1) // 2)), ('R', ((x0 + x1) // 2, x1))):
             left, right = region
             arm = bounds(alpha, (left, rows[3][0], right, rows[3][1]))
-            leg = bounds(alpha, (left, rows[4][0], right, rows[4][1]))
+            leg_left = LEG_MIN_X.get(identifier, {}).get(name, {}).get(side, left)
+            leg = bounds(alpha, (leg_left, rows[4][0], right, rows[4][1]))
             parts[f'upperArm{side}'], parts[f'forearm{side}'] = split_limb(alpha, arm, .45)
             parts[f'thigh{side}'], parts[f'shin{side}'] = split_limb(alpha, leg, .48)
         for item in parts.values():
@@ -205,7 +276,10 @@ def main():
         raise ValueError('No generated source kits found')
     if len({value['sourceSha256'] for value in characters.values()}) != len(characters):
         raise ValueError('Every character needs its own original-identity directional kit')
-    manifest = {'version': 1, 'sampleRate': 60, 'characters': characters}
+    manifest = {'version': 1, 'sampleRate': 60,
+                'anatomy': {'headCoreWorldHeight': HEAD_CORE_HEIGHT,
+                            'headAxis': 'reviewed-skull-crown-to-neck'},
+                'characters': characters}
     temporary = path.with_suffix('.json.tmp')
     temporary.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n')
     temporary.replace(path)

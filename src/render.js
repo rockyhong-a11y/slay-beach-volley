@@ -2,7 +2,7 @@ import { COURTS } from './roster.js';
 import { playerCue, predictLanding } from './engine.js';
 import { COURT_SCENE } from './court-scene.js';
 import { ImpactEffects } from './impact-effects.js';
-import { CharacterAnimator } from './character-motion.js';
+import { CharacterAnimator, SD_ANATOMY, headCrownExtent } from './character-motion.js';
 
 const TAU = Math.PI * 2;
 export async function loadCourtImages() {
@@ -170,7 +170,8 @@ export class Renderer {
     this.ball(ctx, state.ball, cue === 'spike');
     ctx.restore();
     // Keep the player marker steady through breathing and arm/torso motion.
-    const player = state.actors[0], p = project(player.x, player.y, player.z + 285);
+    const player = state.actors[0], view = this.motionManifest.characters?.[player.id]?.views[player.facing];
+    const p = project(player.x, player.y, player.z + SD_ANATOMY.pelvis + SD_ANATOMY.torso + headCrownExtent(view));
     return { ...p, y: p.y - 9 };
   }
 }

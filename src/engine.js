@@ -1,7 +1,7 @@
 import { characterFor } from './roster.js';
 
 export const WORLD = Object.freeze({ width: 1000, depth: 1200, net: 600, netHeight: 460, gravity: 980 });
-export const HAND_HEIGHT = Object.freeze({ attack: 330, toss: 295 });
+export const HAND_HEIGHT = Object.freeze({ attack: 310, toss: 305 });
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export const teamAt = y => y >= WORLD.net ? 0 : 1;

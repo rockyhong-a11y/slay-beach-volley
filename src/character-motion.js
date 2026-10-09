@@ -11,7 +11,8 @@ const length = a => Math.hypot(a.x, a.y, a.z);
 const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
 const blendPoint = (a, b, t) => point(mix(a.x, b.x, t), mix(a.y, b.y, t), mix(a.z, b.z, t));
 const smooth = t => t * t * (3 - 2 * t);
-const ARM = [70, 80], LEG = [46, 51];
+export const SD_ANATOMY = Object.freeze({ head: 112, torso: 86, pelvis: 100, height: 298, arm: Object.freeze([60, 72]), leg: Object.freeze([48, 52]) });
+const ARM = SD_ANATOMY.arm, LEG = SD_ANATOMY.leg;
 
 export const MOTION_TIMING = Object.freeze({ idle: 2, run: .72, toss: .65, spike: .72, block: .85, serve: .8, land: .28 });
 export const CONTACT_PHASE = Object.freeze({ toss: .48, spike: .56, block: .48, serve: .52 });
@@ -21,6 +22,14 @@ export const FACING_BASIS = Object.freeze({
   left: { side: [0, -1], forward: [-1, 0] },
   right: { side: [0, 1], forward: [1, 0] },
 });
+
+// Decorative buns stay outside the skull size axis, but labels must clear them.
+export function headCrownExtent(view) {
+  const head = view?.parts?.head;
+  if (!head?.pivot || !head?.tip) return SD_ANATOMY.head;
+  const axis = head.pivot[1] - head.tip[1];
+  return axis > 0 ? SD_ANATOMY.head * head.pivot[1] / axis : SD_ANATOMY.head;
+}
 
 // The end is clamped to the anatomical reach. This solver never stretches a
 // limb or translates the body to force a distant contact.
@@ -45,15 +54,15 @@ export function solveTwoBone(root, target, upper, lower, pole = add(root, point(
   };
 }
 
-const REST = { pelvis: 124, lean: 0, twist: 0, lx: 0, head: 0, wl: [-50, 8, 95], wr: [50, 8, 95], fl: [-22, 0, 0], fr: [22, 0, 0] };
+const REST = { pelvis: 124, lean: 0, twist: 0, lx: 0, head: 0, wl: [-39, 8, 90], wr: [39, 8, 90], fl: [-24, 0, 0], fr: [24, 0, 0] };
 const k = (at, changes) => ({ at, ...REST, ...changes });
 // Each sequence has its own anatomical preparation, contact and recovery.
 const KEYS = {
-  toss: [k(0, { pelvis: 113, wl: [-42, 16, 176], wr: [42, 16, 176] }), k(.2, { pelvis: 117, lean: 4, wl: [-22, 9, 238], wr: [22, 9, 238] }), k(.48, { pelvis: 124, lean: 6, wl: [-13, 8, 295], wr: [13, 8, 295], fl: [-24, -12, 14], fr: [24, -12, 14] }), k(.65, { pelvis: 125, lean: 8, wl: [-19, 13, 309], wr: [19, 13, 309], fl: [-25, -8, 12], fr: [25, -8, 12] }), k(1, {})],
-  spike: [k(0, { pelvis: 113, lean: 8, wl: [-45, 20, 188], wr: [61, -14, 219] }), k(.24, { pelvis: 122, lean: -8, twist: -.22, wl: [-40, 26, 268], wr: [58, -30, 281], fl: [-24, -20, 25], fr: [24, -28, 30] }), k(.42, { pelvis: 126, lean: -5, twist: -.32, wl: [-33, 30, 248], wr: [46, -38, 305], fl: [-24, -28, 26], fr: [24, -20, 35] }), k(.56, { pelvis: 125, lean: 10, twist: .2, wl: [-44, 20, 229], wr: [23, 25, 330], fl: [-27, -20, 20], fr: [27, -30, 26] }), k(.72, { pelvis: 121, lean: 22, twist: .32, wl: [-39, 2, 197], wr: [32, 62, 228], fl: [-25, -13, 16], fr: [25, -15, 20] }), k(1, {})],
-  block: [k(0, { pelvis: 112, wl: [-34, 4, 215], wr: [34, 4, 215] }), k(.24, { pelvis: 121, wl: [-31, 10, 278], wr: [31, 10, 278], fl: [-23, -13, 17], fr: [23, -13, 17] }), k(.48, { pelvis: 125, lean: 5, wl: [-34, 12, 330], wr: [34, 12, 330], fl: [-25, -18, 21], fr: [25, -18, 21] }), k(.72, { pelvis: 124, lean: 8, wl: [-35, 16, 326], wr: [35, 16, 326], fl: [-25, -10, 13], fr: [25, -10, 13] }), k(1, { pelvis: 120, wl: [-43, 12, 170], wr: [43, 12, 170] })],
-  serve: [k(0, { pelvis: 120, lean: -3, wl: [-28, 37, 219], wr: [49, -25, 206] }), k(.23, { pelvis: 124, twist: -.2, wl: [-19, 26, 286], wr: [45, -30, 274] }), k(.52, { pelvis: 125, lean: 10, twist: .2, wl: [-44, 14, 229], wr: [23, 27, 330] }), k(.73, { pelvis: 121, lean: 20, twist: .27, wl: [-48, 12, 170], wr: [33, 56, 204] }), k(1, {})],
-  land: [k(0, { pelvis: 122, lean: 8, wl: [-56, 8, 140], wr: [56, 8, 140], fl: [-28, -8, 5], fr: [28, -8, 5] }), k(.27, { pelvis: 95, lean: 14, wl: [-56, 15, 105], wr: [56, 15, 105], fl: [-31, 5, 0], fr: [31, 5, 0] }), k(.62, { pelvis: 112, lean: 8, wl: [-52, 11, 120], wr: [52, 11, 120] }), k(1, {})],
+  toss: [k(0, { pelvis: 113, wl: [-34, 12, 175], wr: [34, 12, 175] }), k(.2, { pelvis: 117, lean: 4, wl: [-22, 9, 247], wr: [22, 9, 247] }), k(.48, { pelvis: 124, lean: 6, wl: [-13, 8, 305], wr: [13, 8, 305], fl: [-24, -12, 14], fr: [24, -12, 14] }), k(.65, { pelvis: 125, lean: 8, wl: [-19, 13, 308], wr: [19, 13, 308], fl: [-25, -8, 12], fr: [25, -8, 12] }), k(1, {})],
+  spike: [k(0, { pelvis: 113, lean: 8, wl: [-34, 20, 183], wr: [46, -14, 213] }), k(.24, { pelvis: 122, lean: -8, twist: -.22, wl: [-32, 22, 256], wr: [42, -22, 269], fl: [-24, -20, 25], fr: [24, -28, 30] }), k(.42, { pelvis: 126, lean: -5, twist: -.32, wl: [-27, 26, 235], wr: [32, -20, 298], fl: [-24, -28, 26], fr: [24, -20, 35] }), k(.56, { pelvis: 125, lean: 10, twist: .2, wl: [-34, 20, 222], wr: [23, 25, 310], fl: [-27, -20, 20], fr: [27, -30, 26] }), k(.72, { pelvis: 121, lean: 18, twist: .32, wl: [-32, 2, 181], wr: [28, 45, 205], fl: [-25, -13, 16], fr: [25, -15, 20] }), k(1, {})],
+  block: [k(0, { pelvis: 112, wl: [-29, 4, 200], wr: [29, 4, 200] }), k(.24, { pelvis: 121, wl: [-29, 10, 268], wr: [29, 10, 268], fl: [-23, -13, 17], fr: [23, -13, 17] }), k(.48, { pelvis: 125, lean: 5, wl: [-29, 12, 310], wr: [29, 12, 310], fl: [-25, -18, 21], fr: [25, -18, 21] }), k(.72, { pelvis: 124, lean: 8, wl: [-30, 16, 307], wr: [30, 16, 307], fl: [-25, -10, 13], fr: [25, -10, 13] }), k(1, { pelvis: 120, wl: [-34, 12, 169], wr: [34, 12, 169] })],
+  serve: [k(0, { pelvis: 120, lean: -3, wl: [-26, 30, 215], wr: [38, -20, 202] }), k(.23, { pelvis: 124, twist: -.2, wl: [-19, 22, 273], wr: [35, -24, 262] }), k(.52, { pelvis: 125, lean: 10, twist: .2, wl: [-34, 14, 222], wr: [23, 27, 310] }), k(.73, { pelvis: 121, lean: 18, twist: .27, wl: [-36, 12, 169], wr: [28, 42, 190] }), k(1, {})],
+  land: [k(0, { pelvis: 122, lean: 8, wl: [-42, 8, 140], wr: [42, 8, 140], fl: [-28, -8, 5], fr: [28, -8, 5] }), k(.27, { pelvis: 95, lean: 14, wl: [-42, 15, 108], wr: [42, 15, 108], fl: [-31, 5, 0], fr: [31, 5, 0] }), k(.62, { pelvis: 112, lean: 8, wl: [-40, 11, 123], wr: [40, 11, 123] }), k(1, {})],
 };
 
 function interpolateKeys(keys, phase) {
@@ -70,8 +79,8 @@ function articulate(joints) {
     const shoulder = joints[`shoulder${suffix}`], wrist = joints[`wrist${suffix}`];
     // Relaxed arms bend forward beside the torso instead of flaring outward.
     // Blend continuously into the wider overhead pole as the hands rise.
-    const relaxed = smooth(clamp((shoulder.z - wrist.z - 40) / 20, 0, 1));
-    const armPole = point(sign * mix(90, 26, relaxed), mix(-12, 52, relaxed), mix(-18, -30, relaxed));
+    const relaxed = smooth(clamp((shoulder.z - wrist.z - 20) / 25, 0, 1));
+    const armPole = point(sign * mix(65, 16, relaxed), mix(-12, 35, relaxed), mix(-18, -48, relaxed));
     const arm = solveTwoBone(shoulder, wrist, ...ARM, add(shoulder, armPole));
     joints[`elbow${suffix}`] = arm.joint; joints[`wrist${suffix}`] = arm.end;
     const leg = solveTwoBone(joints[`hip${suffix}`], joints[`ankle${suffix}`], ...LEG, add(joints[`hip${suffix}`], point(sign * 5, 80, -30)));
@@ -90,18 +99,19 @@ function evaluateAuthored(name, phase) {
       return [x, -45 + 90 * smooth(swing), 36 * Math.sin(Math.PI * swing)];
     };
     const swing = Math.sin(phase * TAU);
-    settings = { ...REST, pelvis: 116 + Math.cos(phase * TAU * 2) * 2, lean: 10, twist: swing * .12, wl: [-47, -32 * swing, 105 + swing * 12], wr: [47, 32 * swing, 105 - swing * 12], fl: foot(phase, -23), fr: foot(phase + .5, 23) };
+    settings = { ...REST, pelvis: 116 + Math.cos(phase * TAU * 2) * 2, lean: 10, twist: swing * .12, wl: [-39, -28 * swing, 100 + swing * 12], wr: [39, 28 * swing, 100 - swing * 12], fl: foot(phase, -24), fr: foot(phase + .5, 24) };
   } else if (name === 'idle') {
     const breath = Math.sin(phase * TAU);
-    settings = { ...REST, pelvis: 124 + breath * .8, lean: Math.cos(phase * TAU) * .7, wl: [-50, 8, 95 + breath * .8], wr: [50, 8, 95 + breath * .8] };
+    settings = { ...REST, pelvis: 124 + breath * .8, lean: Math.cos(phase * TAU) * .7, wl: [-39, 8, 90 + breath * .8], wr: [39, 8, 90 + breath * .8] };
   } else settings = interpolateKeys(KEYS[name] || KEYS.toss, phase);
-  // Equal head / torso / leg proportions match the generated SD anatomy.
-  // The authored preparations remain relative to their original pelvis keys.
-  const { lean, twist, lx, head } = settings, pelvis = settings.pelvis - 27;
-  const joints = { pelvis: point(lx, 0, pelvis), neck: point(lx, lean, pelvis + 94), headTop: point(lx + head, lean, pelvis + 188) };
+  // A large skull, short torso and compact limbs form a 2.66-head SD figure.
+  // Hair length is cosmetic and does not participate in body proportions.
+  const { lean, twist, lx, head } = settings, pelvis = settings.pelvis - 24;
+  const joints = { pelvis: point(lx, 0, pelvis), neck: point(lx, lean, pelvis + SD_ANATOMY.torso), headTop: point(lx + head, lean, pelvis + SD_ANATOMY.torso + SD_ANATOMY.head) };
   for (const [suffix, sign, hand, foot] of [['L', -1, settings.wl, settings.fl], ['R', 1, settings.wr, settings.fr]]) {
-    joints[`shoulder${suffix}`] = point(lx + sign * 37 * Math.cos(twist), lean + sign * 37 * Math.sin(twist), pelvis + 84);
-    joints[`hip${suffix}`] = point(lx + sign * 20, 0, pelvis - 1);
+    const shrug = 5 * smooth(clamp((hand[2] - 240) / 55, 0, 1));
+    joints[`shoulder${suffix}`] = point(lx + sign * 28 * Math.cos(twist), lean + sign * 28 * Math.sin(twist), pelvis + 79 + shrug);
+    joints[`hip${suffix}`] = point(lx + sign * 24, 0, pelvis - 1);
     joints[`wrist${suffix}`] = point(...hand); joints[`ankle${suffix}`] = point(...foot);
   }
   return { joints: articulate(joints), hair: Math.sin(phase * TAU + .45) * (name === 'run' ? .11 : .025) };
@@ -136,16 +146,22 @@ function worldToLocal(world, actor, facing) {
   return point(x * basis.side[0] + y * basis.side[1], x * basis.forward[0] + y * basis.forward[1], world.z - actor.z);
 }
 
-function drawPart(ctx, image, part, a, b, mirror = false) {
+function drawPart(ctx, image, part, a, b, mirror = false, transverseLength = 1) {
   if (!part?.rect || !image) return;
   mirror = part.mirror ?? mirror;
   const [sx, sy, width, height] = part.rect;
   const pivot = part.pivot || [width / 2, height * .97], tip = part.tip || [width / 2, height * .03];
   const sourceX = (tip[0] - pivot[0]) * (mirror ? -1 : 1), sourceY = tip[1] - pivot[1];
-  const scale = Math.hypot(b.x - a.x, b.y - a.y) / Math.max(1, Math.hypot(sourceX, sourceY));
+  const sourceLength = Math.max(1, Math.hypot(sourceX, sourceY));
+  const along = Math.hypot(b.x - a.x, b.y - a.y) / sourceLength;
+  const across = transverseLength / sourceLength;
   ctx.save(); ctx.translate(a.x, a.y);
-  ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x) - Math.atan2(sourceY, sourceX));
-  ctx.scale(mirror ? -scale : scale, scale);
+  // Only the bone axis follows projected joint distance. Turning, bending or
+  // pointing toward the camera cannot inflate the arm or shrink its thickness.
+  ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x) - Math.PI / 2);
+  ctx.scale(across, along);
+  ctx.rotate(Math.PI / 2 - Math.atan2(sourceY, sourceX));
+  ctx.scale(mirror ? -1 : 1, 1);
   ctx.drawImage(image, sx, sy, width, height, -pivot[0], -pivot[1], width, height); ctx.restore();
 }
 
@@ -206,20 +222,23 @@ export class CharacterAnimator {
     const projectLocal = local => { const world = localToWorld(local, actor, pose.facing); return project(world.x, world.y, world.z); };
     for (const [name, local] of Object.entries(joints)) projected[name] = projectLocal(local);
     const parts = view?.parts || {}, mirror = Boolean(view?.mirror);
-    const bone = (name, start, end) => drawPart(ctx, image, parts[name], projected[start], projected[end], mirror);
-    const arm = suffix => { bone(`upperArm${suffix}`, `shoulder${suffix}`, `elbow${suffix}`); bone(`forearm${suffix}`, `elbow${suffix}`, `wrist${suffix}`); };
+    const base = projectLocal(point()), crown = projectLocal(point(0, 0, SD_ANATOMY.height));
+    const pixelUnit = Math.hypot(crown.x - base.x, crown.y - base.y) / SD_ANATOMY.height;
+    const lengths = { head: SD_ANATOMY.head, body: SD_ANATOMY.torso, upperArmL: ARM[0] * .8, upperArmR: ARM[0] * .8, forearmL: ARM[1] * .8, forearmR: ARM[1] * .8, thighL: LEG[0], thighR: LEG[0], shinL: LEG[1], shinR: LEG[1] };
+    const bone = (name, start, end) => drawPart(ctx, image, parts[name], projected[start], projected[end], mirror, lengths[name] * pixelUnit);
+    const arm = suffix => bone(`upperArm${suffix}`, `shoulder${suffix}`, `elbow${suffix}`);
     const leg = suffix => { bone(`thigh${suffix}`, `hip${suffix}`, `knee${suffix}`); bone(`shin${suffix}`, `knee${suffix}`, `ankle${suffix}`); };
     const hair = () => {
       const part = parts.hair;
       if (!part) return;
       const hairLength = view.hairLengthWorld || view.hairLength || part.hairLengthWorld || 180;
-      const anchor = point(joints.neck.x, joints.neck.y, 190 + joints.pelvis.z - 97);
+      const anchor = joints.neck;
       const tip = add(anchor, point(Math.sin(pose.hair) * hairLength, 0, -hairLength));
-      const pivot = part.pivot || [part.rect[2] / 2, part.rect[3] * (95 / hairLength)];
+      const pivot = part.pivot || [part.rect[2] / 2, part.rect[3] * (SD_ANATOMY.head / hairLength)];
       // Hair metadata's real tip is its crown. A virtual downward endpoint
       // keeps the crown above the neck instead of rotating the hair upside down.
       const sourceTip = [pivot[0], part.rect[3] + pivot[1]];
-      drawPart(ctx, image, { ...part, pivot, tip: sourceTip }, projectLocal(anchor), projectLocal(tip), mirror);
+      drawPart(ctx, image, { ...part, pivot, tip: sourceTip }, projectLocal(anchor), projectLocal(tip), mirror, hairLength * pixelUnit);
     };
     const far = pose.facing === 'right' ? 'R' : 'L', near = far === 'R' ? 'L' : 'R';
     if (pose.facing !== 'up') hair();
@@ -228,6 +247,12 @@ export class CharacterAnimator {
     arm(near);
     if (pose.facing === 'up') hair();
     bone('head', 'neck', 'headTop');
-    return projected.headTop;
+    // Large SD hair must not hide the toss hands or the spike/block gesture.
+    // Hands keep this foreground layer throughout the clip, avoiding a switch
+    // in draw order during the raise. Their dimensions still follow the rig.
+    bone(`forearm${far}`, `elbow${far}`, `wrist${far}`);
+    bone(`forearm${near}`, `elbow${near}`, `wrist${near}`);
+    const crownRatio = headCrownExtent(view) / SD_ANATOMY.head;
+    return { x: mix(projected.neck.x, projected.headTop.x, crownRatio), y: mix(projected.neck.y, projected.headTop.y, crownRatio) };
   }
 }

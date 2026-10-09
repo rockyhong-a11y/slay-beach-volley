@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 import { ROSTER } from '../src/roster.js';
+import { SD_ANATOMY } from '../src/character-motion.js';
 
 const manifest = JSON.parse(await readFile(new URL('../assets/motions/manifest.json', import.meta.url), 'utf8'));
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -102,6 +103,23 @@ test('reviewed profile mirroring keeps Raven head and body aligned and short hai
   for (const { id } of ROSTER) for (const view of Object.values(manifest.characters[id].views)) {
     assert.equal(typeof view.mirror, 'boolean');
     assert.equal(manifest.characters[id].views.up.mirror, false); assert.equal(manifest.characters[id].views.down.mirror, false);
-    if (['atlas', 'valkyrie', 'lynx'].includes(id)) assert.equal(view.hairLengthWorld, 110);
+    if (['atlas', 'valkyrie', 'lynx'].includes(id)) assert.equal(view.hairLengthWorld, 130);
+  }
+});
+
+test('reviewed skull joints exclude long hair from the SD head axis without changing source artwork', () => {
+  for (const { id } of ROSTER) for (const [facing, view] of Object.entries(manifest.characters[id].views)) {
+    const head = view.parts.head, label = `${id}/${facing}`;
+    assert.equal(head.headCoreWorldHeight, SD_ANATOMY.head, label);
+    assert.deepEqual(head.headCoreRect, head.rect, label);
+    assert.equal(head.pivot[0], head.tip[0], `${label}: skull axis remains vertical instead of pointing toward a ponytail`);
+    assert.ok(head.pivot[1] > head.tip[1], `${label}: the crown stays above the neck`);
+    const [x, y, width, height] = head.rect, [sx, sy, sw, sh] = head.sourceRect;
+    assert.ok(x >= sx && y >= sy && x + width <= sx + sw && y + height <= sy + sh, `${label}: reviewed crop stays in its original head part`);
+    assert.ok(view.hairLengthWorld > SD_ANATOMY.head, `${label}: a separate hair part covers the skull and extends below it`);
+  }
+  for (const id of ['tempest', 'onyx', 'seraph']) for (const [facing, view] of Object.entries(manifest.characters[id].views)) {
+    const head = view.parts.head;
+    assert.ok(head.rect[3] < head.sourceRect[3], `${id}/${facing}: long hair no longer determines skull height`);
   }
 });
