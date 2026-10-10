@@ -17,14 +17,14 @@ if (audit) {
 }
 if (process.argv.includes('--upgrade')) {
   const target = new URL(gameURL);
-  if (!['localhost', '127.0.0.1'].includes(target.hostname) || target.pathname !== '/dist/' || target.searchParams.get('v') !== '8') {
+  if (!['localhost', '127.0.0.1'].includes(target.hostname) || target.pathname !== '/dist/' || target.searchParams.get('v') !== '9') {
     await browser.close();
-    throw new Error('Upgrade QA requires the local /dist/?v=8 URL.');
+    throw new Error('Upgrade QA requires the local /dist/?v=9 URL.');
   }
   const base = new URL('./', target), workerURL = new URL('sw.js', base).href;
   const legacyWorkerURL = new URL('qa-legacy-sw.js', base).href;
   const fixturePath = 'dist/qa-legacy-sw.js';
-  const legacyCache = 'slay-beach-volley-v7', currentCache = 'slay-beach-volley-v8';
+  const legacyCache = 'slay-beach-volley-v8', currentCache = 'slay-beach-volley-v9';
   const contexts = [], errors = [];
   let fixtureCreated = false;
   try {
@@ -64,20 +64,20 @@ self.addEventListener('fetch', event => {
       await navigator.serviceWorker.register(legacyWorkerURL, { scope });
       await navigator.serviceWorker.ready;
       const cache = await caches.open(legacyCache);
-      const html = `<!doctype html><html><head><title>Legacy v7 fixture</title></head><body data-legacy="v7"><div id="legacy-marker">Cached v7 app</div><script>
+      const html = `<!doctype html><html><head><title>Legacy v8 fixture</title></head><body data-legacy="v8"><div id="legacy-marker">Cached v8 app</div><script>
 sessionStorage.setItem('volley-legacy-loads', String(Number(sessionStorage.getItem('volley-legacy-loads') || 0) + 1));
-if (new URL(location.href).searchParams.get('v') === '8') navigator.serviceWorker.register(${JSON.stringify(workerURL)}, {scope:${JSON.stringify(scope)}}).catch(error => console.error(error));
+if (new URL(location.href).searchParams.get('v') === '9') navigator.serviceWorker.register(${JSON.stringify(workerURL)}, {scope:${JSON.stringify(scope)}}).catch(error => console.error(error));
 <\/script></body></html>`;
-      await cache.put(baseURL, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': 'legacy-v7' } }));
-      await cache.put(new URL('index.html', baseURL).href, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': 'legacy-v7' } }));
+      await cache.put(baseURL, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': 'legacy-v8' } }));
+      await cache.put(new URL('index.html', baseURL).href, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': 'legacy-v8' } }));
       await caches.open('other-game-cache');
     }, { legacyWorkerURL, scope: base.pathname, legacyCache, baseURL: base.href, workerURL });
     await expect.poll(() => upgradePage.evaluate(() => navigator.serviceWorker.controller?.scriptURL || '')).toBe(legacyWorkerURL);
 
-    // An existing v7 game tab must remain open; only the explicit v8 link may
+    // An existing v8 game tab must remain open; only the explicit v9 link may
     // be navigated again when the new worker takes control.
     const oldPage = await upgradeContext.newPage();
-    const oldURL = new URL(base); oldURL.searchParams.set('v', '7');
+    const oldURL = new URL(base); oldURL.searchParams.set('v', '8');
     let oldNavigations = 0;
     oldPage.on('framenavigated', frame => { if (frame === oldPage.mainFrame()) oldNavigations++; });
     oldPage.on('pageerror', error => errors.push(error.message));
@@ -87,7 +87,7 @@ if (new URL(location.href).searchParams.get('v') === '8') navigator.serviceWorke
     let upgradeNavigations = 0, legacyResponseSeen = false;
     upgradePage.on('framenavigated', frame => { if (frame === upgradePage.mainFrame()) upgradeNavigations++; });
     upgradePage.on('response', response => {
-      if (response.request().isNavigationRequest() && response.headers()['x-volley-qa'] === 'legacy-v7') legacyResponseSeen = true;
+      if (response.request().isNavigationRequest() && response.headers()['x-volley-qa'] === 'legacy-v8') legacyResponseSeen = true;
     });
     await upgradePage.goto(gameURL, { waitUntil: 'domcontentloaded' });
     await upgradePage.waitForSelector('body[data-ready="true"]', { timeout: 30000 });
@@ -95,18 +95,18 @@ if (new URL(location.href).searchParams.get('v') === '8') navigator.serviceWorke
     await expect(upgradePage.locator('#game-canvas')).toHaveAttribute('data-animation', 'whole-sprite-60');
     expect(await upgradePage.locator('.roster-item').count()).toBe(EXPECTED_ROSTER.length);
     await expect.poll(() => upgradePage.evaluate(() => navigator.serviceWorker.controller?.scriptURL || '')).toBe(workerURL);
-    expect(legacyResponseSeen, 'the first request must actually exercise the stale v7 HTML').toBe(true);
+    expect(legacyResponseSeen, 'the first request must actually exercise the stale v8 HTML').toBe(true);
     expect(await upgradePage.evaluate(() => sessionStorage.getItem('volley-legacy-loads'))).toBe('1');
     await upgradePage.waitForTimeout(800);
     expect(upgradeNavigations, 'one upgrade reload is required, without a navigation loop').toBe(2);
-    expect(oldNavigations, 'an existing v7 game must not be interrupted').toBe(1);
+    expect(oldNavigations, 'an existing v8 game must not be interrupted').toBe(1);
     await expect(oldPage.locator('#legacy-marker')).toBeVisible();
     const cachesAfter = await upgradePage.evaluate(async ({ legacyCache, currentCache }) => ({
       legacyRemoved: !await caches.has(legacyCache), currentPresent: await caches.has(currentCache), unrelatedPreserved: await caches.has('other-game-cache'),
     }), { legacyCache, currentCache });
     expect(cachesAfter).toEqual({ legacyRemoved: true, currentPresent: true, unrelatedPreserved: true });
     expect(errors).toEqual([]);
-    const report = { upgrade: true, staleV7ResponseSeen: legacyResponseSeen, freshInstallNavigations: freshNavigations, upgradeNavigations, existingV7Navigations: oldNavigations, ...cachesAfter, errors };
+    const report = { upgrade: true, staleV8ResponseSeen: legacyResponseSeen, freshInstallNavigations: freshNavigations, upgradeNavigations, existingV8Navigations: oldNavigations, ...cachesAfter, errors };
     await writeFile('artifacts/upgrade-qa-results.json', JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report));
   } finally {
@@ -416,7 +416,7 @@ if (process.argv.includes('--offline')) {
   if (!await page.evaluate(() => caches.has('other-game-cache'))) throw new Error('Other game cache was removed');
   await context.setOffline(true); await page.reload(); await page.waitForSelector('body[data-ready="true"]');
   await page.setViewportSize({ width: 393, height: 852 });
-  const cacheSheets = await page.evaluate(async () => (await (await caches.open('slay-beach-volley-v8')).keys()).filter(request => /\/assets\/animation\/.*\.webp$/.test(request.url)).length);
+  const cacheSheets = await page.evaluate(async () => (await (await caches.open('slay-beach-volley-v9')).keys()).filter(request => /\/assets\/animation\/.*\.webp$/.test(request.url)).length);
   expect(cacheSheets).toBe(EXPECTED_ROSTER.length * 4);
   const offlineSelections = [];
   for (const character of EXPECTED_ROSTER) {
@@ -574,7 +574,17 @@ await snapshot('artifacts/automatic-attack-ready.png');
 await page.getByRole('button', { name: '스파이크. 길게 눌렀다 놓으면 더 강하게 공격합니다.' }).click();
 await page.clock.runFor(25);
 await expect(page.locator('#game-callout strong')).toHaveText(/SPIKE!|PERFECT!/);
+// The compositor's text fade uses wall time even while game time is paused.
+await page.waitForTimeout(170);
 await snapshot('artifacts/manual-spike.png');
+const actionAnnouncement = await page.evaluate(() => ({
+  title: document.querySelector('#game-callout strong').textContent,
+  callout: document.querySelector('#game-callout').getBoundingClientRect().toJSON(),
+  court: document.querySelector('#arena-wrap').getBoundingClientRect().toJSON(),
+  matchLabel: document.querySelector('#match-label').getBoundingClientRect().toJSON(),
+  controls: document.querySelector('#game-controls').getBoundingClientRect().toJSON(),
+}));
+console.log(JSON.stringify({ actionAnnouncement }));
 console.log('The player jumps automatically, waits for input and hits a real manually triggered spike.');
 await page.clock.runFor(61000);
 await expect(page.locator('#result-dialog')).toBeVisible({ timeout: 10000 });
@@ -588,6 +598,6 @@ await page.setViewportSize({ width: 1440, height: 1000 });
 await snapshot('artifacts/desktop-dark.png');
 await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'no-preference' });
 await snapshot('artifacts/desktop-lobby.png');
-await writeFile('artifacts/browser-qa-results.json', JSON.stringify({ errors, responses, layouts, longPressGuards, initialAnimationLoading, rapidSelectionLoading, partnerChoices, sampledAudioDecoded: 4, checked: ['three physically lit Blender stadiums and calibrated 2D scene','four sampled volleyball sounds decoded after a real play gesture','ordinary mobile button long press without native popup','all ten original characters with whole-body action artwork','manual movement stops when input is released','legacy movement assistance removed without losing records','keyboard movement and block','800 ms touch charge without selection or popup','automatic jump and real manual spike after manual positioning','charge button','joystick pointer capture','pause and resume','persistent character and settings','help modal','60 second practice and result','dark mode','reduced motion'] }, null, 2));
+await writeFile('artifacts/browser-qa-results.json', JSON.stringify({ errors, responses, layouts, actionAnnouncement, longPressGuards, initialAnimationLoading, rapidSelectionLoading, partnerChoices, sampledAudioDecoded: 4, checked: ['three physically lit Blender stadiums and calibrated 2D scene','four sampled volleyball sounds decoded after a real play gesture','ordinary mobile button long press without native popup','all ten original characters with whole-body action artwork','manual movement stops when input is released','legacy movement assistance removed without losing records','keyboard movement and block','800 ms touch charge without selection or popup','automatic jump and real manual spike after manual positioning','charge button','joystick pointer capture','pause and resume','persistent character and settings','help modal','60 second practice and result','dark mode','reduced motion'] }, null, 2));
 if(errors.length || responses.length) throw new Error(JSON.stringify({errors,responses}));
 await browser.close();

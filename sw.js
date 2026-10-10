@@ -1,4 +1,4 @@
-const VERSION = 'slay-beach-volley-v8';
+const VERSION = 'slay-beach-volley-v9';
 const ASSETS = [];
 const SHELL = ['./', './index.html', './style.css', './src/app.js', './src/roster.js', './src/engine.js', './src/render.js', './src/audio.js', './src/court-scene.js', './src/impact-effects.js', './src/sprite-animation.js', './src/sprites.json', './assets/animation/manifest.json', './favicon.svg', './manifest.webmanifest'];
 self.addEventListener('install', event => {

@@ -45,6 +45,49 @@
       "startVisible": true
     }
   ],
+  "actionAnnouncement": {
+    "title": "PERFECT!",
+    "callout": {
+      "x": 115.5580062866211,
+      "y": 603.3013916015625,
+      "width": 161.88397216796875,
+      "height": 80.397216796875,
+      "top": 603.3013916015625,
+      "right": 277.44197845458984,
+      "bottom": 683.6986083984375,
+      "left": 115.5580062866211
+    },
+    "court": {
+      "x": 16,
+      "y": 87,
+      "width": 361,
+      "height": 647,
+      "top": 87,
+      "right": 377,
+      "bottom": 734,
+      "left": 16
+    },
+    "matchLabel": {
+      "x": 125.9296875,
+      "y": 700,
+      "width": 141.140625,
+      "height": 22,
+      "top": 700,
+      "right": 267.0703125,
+      "bottom": 722,
+      "left": 125.9296875
+    },
+    "controls": {
+      "x": 16,
+      "y": 734,
+      "width": 361,
+      "height": 112,
+      "top": 734,
+      "right": 377,
+      "bottom": 846,
+      "left": 16
+    }
+  },
   "longPressGuards": {
     "ui": [
       {

@@ -1,4 +1,10 @@
-# v8 release verification
+# v9 action announcement placement
+
+The action title and skill caption now appear together at the bottom of the court, above the match-status pill. Their entry movement is limited to 8px. The visible announcement also raises the charging meter to prevent the two overlays from overlapping. Existing character animation, physics and controls continue unchanged.
+
+Full browser gameplay, the six mobile layouts and desktop, actual 800ms holds on both an ordinary button and the spike control, and native editable-field handling pass. The manual-spike screenshot and `browser-qa-results.json` record the real displayed announcement and its court, status and control bounds. Existing cache tests pass for v8→v9 with exactly one upgrade reload; offline play retains all ten characters, forty animation sheets and four decoded sound files. Other applications' caches remain intact.
+
+# v8 animation verification
 
 Verified on 2026-10-10 with Node.js 24 and Chrome through Playwright.
 
