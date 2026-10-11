@@ -14,7 +14,7 @@
     <link rel="preload" href="./assets/fonts/DoHyeon-subset.ttf" as="font" type="font/ttf" crossorigin />
     <link rel="preload" href="./assets/portraits/raven.webp" as="image" fetchpriority="high" />
     <link rel="preload" href="./assets/portraits/valkyrie.webp" as="image" fetchpriority="high" />
-    <link rel="stylesheet" href="./style.css?v=8" />
+    <link rel="stylesheet" href="./style.css?v=10" />
   </head>
   <body>
     <div class="app-shell">
@@ -58,6 +58,19 @@
             <canvas id="game-canvas" width="480" height="580" tabindex="0" aria-label="2대2 비치발리볼 코트. 방향키 또는 W A S D로 직접 이동. 토스와 공격 점프는 자동. 스페이스 또는 K로 블로킹, J로 스파이크."></canvas>
             <div class="match-label" id="match-label"><span class="preview-dot"></span>몸 푸는 중. 준비되면 시작!</div>
             <div class="game-callout" id="game-callout" aria-hidden="true"><strong>PERFECT!</strong><small>완벽한 타이밍</small></div>
+            <div class="point-cutscene" id="point-cutscene" hidden aria-hidden="true">
+              <div class="point-rays"></div>
+              <div class="point-card-scene">
+                <div class="point-heading"><small data-card-eyebrow>YOUR TEAM</small><strong data-card-title>POINT!</strong></div>
+                <div class="point-card">
+                  <div class="point-card-corner corner-top">✦</div><div class="point-card-corner corner-bottom">✦</div>
+                  <div class="point-card-art"><span class="point-card-halo"></span><canvas width="360" height="420"></canvas></div>
+                  <div class="point-card-info"><strong data-card-name>NOVA</strong><small data-card-role>노바 · 올라운드 에이스</small><span data-card-caption>플래시 스파이크</span></div>
+                  <div class="point-card-shine"></div>
+                </div>
+                <div class="point-verdict"><span data-card-detail>우리 팀 득점</span><div data-card-score><strong data-card-ours>1</strong><span>:</span><strong data-card-theirs>0</strong></div></div>
+              </div>
+            </div>
             <div class="countdown" id="countdown" aria-hidden="true"></div>
             <div class="load-status" id="load-status" role="status"><span></span><small>선수들이 해변으로 오는 중...</small></div>
             <div class="power-meter" id="power-meter" hidden><span>SPIKE POWER</span><div><i id="power-fill"></i></div></div>
@@ -121,6 +134,6 @@
     <div class="toast" id="toast" role="status"></div>
     <div class="sr-only" id="announcer" role="status" aria-live="polite"></div>
     <noscript>이 게임은 JavaScript가 필요합니다. 브라우저에서 JavaScript를 활성화해주세요.</noscript>
-    <script type="module" src="./src/app.js?v=8"></script>
+    <script type="module" src="./src/app.js?v=10"></script>
   </body>
 </html>

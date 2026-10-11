@@ -1,11 +1,14 @@
 import { chromium, expect } from '@playwright/test';
-import { writeFile, unlink } from 'node:fs/promises';
+import { readFile, writeFile, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { ROSTER as EXPECTED_ROSTER } from '../src/roster.js';
 const chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const urlArgument = process.argv.indexOf('--url');
 const gameURL = process.env.GAME_URL || (urlArgument >= 0 ? process.argv[urlArgument + 1] : 'http://localhost:5173/');
 const audit = process.argv.includes('--audit');
+const currentCache = (await readFile(new URL('../sw.js', import.meta.url), 'utf8')).match(/const VERSION = '([^']+)'/)[1];
+const currentRelease = currentCache.split('-v').at(-1);
+const legacyRelease = String(Number(currentRelease) - 1), legacyCache = `slay-beach-volley-v${legacyRelease}`;
 const browser = await chromium.launch({ headless: true, args: audit ? ['--remote-debugging-port=9225'] : [], executablePath: process.env.PLAYWRIGHT_CHROME || (existsSync(chromePath) ? chromePath : undefined) });
 if (audit) {
   const { default: lighthouse } = await import('lighthouse');
@@ -17,14 +20,13 @@ if (audit) {
 }
 if (process.argv.includes('--upgrade')) {
   const target = new URL(gameURL);
-  if (!['localhost', '127.0.0.1'].includes(target.hostname) || target.pathname !== '/dist/' || target.searchParams.get('v') !== '9') {
+  if (!['localhost', '127.0.0.1'].includes(target.hostname) || target.pathname !== '/dist/' || target.searchParams.get('v') !== currentRelease) {
     await browser.close();
-    throw new Error('Upgrade QA requires the local /dist/?v=9 URL.');
+    throw new Error(`Upgrade QA requires the local /dist/?v=${currentRelease} URL.`);
   }
   const base = new URL('./', target), workerURL = new URL('sw.js', base).href;
   const legacyWorkerURL = new URL('qa-legacy-sw.js', base).href;
   const fixturePath = 'dist/qa-legacy-sw.js';
-  const legacyCache = 'slay-beach-volley-v8', currentCache = 'slay-beach-volley-v9';
   const contexts = [], errors = [];
   let fixtureCreated = false;
   try {
@@ -60,24 +62,24 @@ self.addEventListener('fetch', event => {
     upgradePage.on('pageerror', error => errors.push(error.message));
     await upgradePage.goto(gameURL);
     await upgradePage.waitForSelector('body[data-ready="true"]');
-    await upgradePage.evaluate(async ({ legacyWorkerURL, scope, legacyCache, baseURL, workerURL }) => {
+    await upgradePage.evaluate(async ({ legacyWorkerURL, scope, legacyCache, baseURL, workerURL, legacyRelease, currentRelease }) => {
       await navigator.serviceWorker.register(legacyWorkerURL, { scope });
       await navigator.serviceWorker.ready;
       const cache = await caches.open(legacyCache);
-      const html = `<!doctype html><html><head><title>Legacy v8 fixture</title></head><body data-legacy="v8"><div id="legacy-marker">Cached v8 app</div><script>
+      const html = `<!doctype html><html><head><title>Legacy v${legacyRelease} fixture</title></head><body data-legacy="v${legacyRelease}"><div id="legacy-marker">Cached v${legacyRelease} app</div><script>
 sessionStorage.setItem('volley-legacy-loads', String(Number(sessionStorage.getItem('volley-legacy-loads') || 0) + 1));
-if (new URL(location.href).searchParams.get('v') === '9') navigator.serviceWorker.register(${JSON.stringify(workerURL)}, {scope:${JSON.stringify(scope)}}).catch(error => console.error(error));
+if (new URL(location.href).searchParams.get('v') === ${JSON.stringify(currentRelease)}) navigator.serviceWorker.register(${JSON.stringify(workerURL)}, {scope:${JSON.stringify(scope)}}).catch(error => console.error(error));
 <\/script></body></html>`;
-      await cache.put(baseURL, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': 'legacy-v8' } }));
-      await cache.put(new URL('index.html', baseURL).href, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': 'legacy-v8' } }));
+      await cache.put(baseURL, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': `legacy-v${legacyRelease}` } }));
+      await cache.put(new URL('index.html', baseURL).href, new Response(html, { headers: { 'Content-Type': 'text/html', 'X-Volley-QA': `legacy-v${legacyRelease}` } }));
       await caches.open('other-game-cache');
-    }, { legacyWorkerURL, scope: base.pathname, legacyCache, baseURL: base.href, workerURL });
+    }, { legacyWorkerURL, scope: base.pathname, legacyCache, baseURL: base.href, workerURL, legacyRelease, currentRelease });
     await expect.poll(() => upgradePage.evaluate(() => navigator.serviceWorker.controller?.scriptURL || '')).toBe(legacyWorkerURL);
 
-    // An existing v8 game tab must remain open; only the explicit v9 link may
+    // An existing old game tab must remain open; only the explicit new link may
     // be navigated again when the new worker takes control.
     const oldPage = await upgradeContext.newPage();
-    const oldURL = new URL(base); oldURL.searchParams.set('v', '8');
+    const oldURL = new URL(base); oldURL.searchParams.set('v', legacyRelease);
     let oldNavigations = 0;
     oldPage.on('framenavigated', frame => { if (frame === oldPage.mainFrame()) oldNavigations++; });
     oldPage.on('pageerror', error => errors.push(error.message));
@@ -87,7 +89,7 @@ if (new URL(location.href).searchParams.get('v') === '9') navigator.serviceWorke
     let upgradeNavigations = 0, legacyResponseSeen = false;
     upgradePage.on('framenavigated', frame => { if (frame === upgradePage.mainFrame()) upgradeNavigations++; });
     upgradePage.on('response', response => {
-      if (response.request().isNavigationRequest() && response.headers()['x-volley-qa'] === 'legacy-v8') legacyResponseSeen = true;
+      if (response.request().isNavigationRequest() && response.headers()['x-volley-qa'] === `legacy-v${legacyRelease}`) legacyResponseSeen = true;
     });
     await upgradePage.goto(gameURL, { waitUntil: 'domcontentloaded' });
     await upgradePage.waitForSelector('body[data-ready="true"]', { timeout: 30000 });
@@ -95,18 +97,18 @@ if (new URL(location.href).searchParams.get('v') === '9') navigator.serviceWorke
     await expect(upgradePage.locator('#game-canvas')).toHaveAttribute('data-animation', 'whole-sprite-60');
     expect(await upgradePage.locator('.roster-item').count()).toBe(EXPECTED_ROSTER.length);
     await expect.poll(() => upgradePage.evaluate(() => navigator.serviceWorker.controller?.scriptURL || '')).toBe(workerURL);
-    expect(legacyResponseSeen, 'the first request must actually exercise the stale v8 HTML').toBe(true);
+    expect(legacyResponseSeen, 'the first request must actually exercise the stale cached HTML').toBe(true);
     expect(await upgradePage.evaluate(() => sessionStorage.getItem('volley-legacy-loads'))).toBe('1');
     await upgradePage.waitForTimeout(800);
     expect(upgradeNavigations, 'one upgrade reload is required, without a navigation loop').toBe(2);
-    expect(oldNavigations, 'an existing v8 game must not be interrupted').toBe(1);
+    expect(oldNavigations, 'an existing old game must not be interrupted').toBe(1);
     await expect(oldPage.locator('#legacy-marker')).toBeVisible();
     const cachesAfter = await upgradePage.evaluate(async ({ legacyCache, currentCache }) => ({
       legacyRemoved: !await caches.has(legacyCache), currentPresent: await caches.has(currentCache), unrelatedPreserved: await caches.has('other-game-cache'),
     }), { legacyCache, currentCache });
     expect(cachesAfter).toEqual({ legacyRemoved: true, currentPresent: true, unrelatedPreserved: true });
     expect(errors).toEqual([]);
-    const report = { upgrade: true, staleV8ResponseSeen: legacyResponseSeen, freshInstallNavigations: freshNavigations, upgradeNavigations, existingV8Navigations: oldNavigations, ...cachesAfter, errors };
+    const report = { upgrade: true, legacyRelease, currentRelease, staleResponseSeen: legacyResponseSeen, freshInstallNavigations: freshNavigations, upgradeNavigations, existingGameNavigations: oldNavigations, ...cachesAfter, errors };
     await writeFile('artifacts/upgrade-qa-results.json', JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report));
   } finally {
@@ -114,6 +116,159 @@ if (new URL(location.href).searchParams.get('v') === '9') navigator.serviceWorke
     if (fixtureCreated) await unlink(fixturePath);
     await browser.close();
   }
+  process.exit(0);
+}
+if (process.argv.includes('--point-cards')) {
+  const cardContext = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 1, hasTouch: true });
+  await cardContext.addInitScript(() => localStorage.setItem('slay-beach-volley-v1', JSON.stringify({ character: 'nova', partner: 'seraph', settings: { difficulty: 2, music: false, sfx: false, haptics: false } })));
+  const cardPage = await cardContext.newPage(), errors = [], responses = [];
+  cardPage.on('pageerror', error => errors.push(error.message));
+  cardPage.on('response', response => { if (response.status() >= 400) responses.push({ status: response.status(), url: response.url() }); });
+  const cutscene = cardPage.locator('#point-cutscene');
+  const isCardVisible = () => cutscene.evaluate(element => !element.hidden);
+  const cardState = () => cutscene.evaluate(element => ({ ...element.dataset, title: element.querySelector('[data-card-title]').textContent, name: element.querySelector('[data-card-name]').textContent, ours: Number(element.querySelector('[data-card-ours]').textContent), theirs: Number(element.querySelector('[data-card-theirs]').textContent) }));
+  async function nextCard(outcome, ticks = 900) {
+    for (let index = 0; index < ticks; index++) {
+      await cardPage.clock.runFor(100);
+      if (await isCardVisible() && (!outcome || await cutscene.getAttribute('data-outcome') === outcome)) return cardState();
+      if (await cardPage.locator('#result-dialog').evaluate(element => element.open)) break;
+    }
+    throw new Error(`No real ${outcome || 'point'} card appeared during the match.`);
+  }
+  try {
+    await cardPage.clock.install({ time: new Date('2026-10-11T00:00:00Z') });
+    await cardPage.goto(gameURL); await cardPage.waitForSelector('body[data-ready="true"]', { timeout: 30000 });
+    await cardPage.getByRole('button', { name: '경기 시작', exact: true }).click();
+    await cardPage.clock.pauseAt(await cardPage.evaluate(() => Date.now() + 40));
+    const actualLoss = await nextCard('lost');
+    expect(['nova', 'seraph']).toContain(actualLoss.character);
+    expect(actualLoss.pose).toBe('2'); expect(actualLoss.artReady).toBe('true');
+    await cardPage.clock.runFor(250); // Allow the scoreboard's 90ms HUD throttle to catch up.
+    expect(actualLoss.theirs).toBe(Number(await cardPage.locator('#their-score').innerText()));
+    await cardPage.waitForTimeout(220);
+    await cardPage.screenshot({ path: 'artifacts/point-card-lost.png' });
+    await cardPage.getByRole('button', { name: '일시정지', exact: true }).click();
+    const pausedCard = await cardState(), pausedScore = await cardPage.locator('#scoreboard').innerText();
+    await cardPage.clock.runFor(2500);
+    expect(await cardState()).toEqual(pausedCard); expect(await isCardVisible()).toBe(true);
+    expect(await cardPage.locator('#scoreboard').innerText()).toBe(pausedScore);
+    await cardPage.getByRole('button', { name: '경기 계속', exact: true }).click();
+    await cardPage.clock.runFor(1500); expect(await isCardVisible()).toBe(false);
+
+    await nextCard(); await cardPage.getByRole('button', { name: '일시정지', exact: true }).click();
+    await cardPage.locator('#restart-button').click(); await cardPage.clock.runFor(100);
+    expect(await isCardVisible()).toBe(false); expect(await cutscene.getAttribute('data-character')).toBeNull();
+    expect(await cardPage.locator('#our-score').innerText()).toBe('0'); expect(await cardPage.locator('#their-score').innerText()).toBe('0');
+    await nextCard(); await cardPage.getByRole('button', { name: '일시정지', exact: true }).click();
+    await cardPage.locator('#home-button').click(); await cardPage.clock.runFor(2500);
+    expect(await isCardVisible()).toBe(false); expect(await cutscene.getAttribute('data-character')).toBeNull();
+
+    await cardPage.getByRole('button', { name: '경기 시작', exact: true }).click();
+    let terminal = null;
+    for (let tick = 0; tick < 2400; tick++) {
+      await cardPage.clock.runFor(100);
+      if (await cardPage.locator('body').getAttribute('data-phase') === 'finished') { terminal = await cardState(); break; }
+    }
+    expect(terminal, 'an idle match must finish through real point events').not.toBeNull();
+    expect(Math.max(terminal.ours, terminal.theirs)).toBe(7);
+    expect(await isCardVisible()).toBe(true); await expect(cardPage.locator('#result-dialog')).not.toBeVisible();
+    await cardPage.getByRole('button', { name: '일시정지', exact: true }).click();
+    const pausedTerminal = await cardState();
+    await cardPage.clock.runFor(2500); expect(await cardState()).toEqual(pausedTerminal);
+    expect(await isCardVisible()).toBe(true); await expect(cardPage.locator('#result-dialog')).not.toBeVisible();
+    await cardPage.getByRole('button', { name: '경기 계속', exact: true }).click();
+    await cardPage.clock.runFor(800); expect(await isCardVisible()).toBe(true);
+    await expect(cardPage.locator('#result-dialog')).not.toBeVisible();
+    await cardPage.clock.runFor(900); expect(await isCardVisible()).toBe(false);
+    await expect(cardPage.locator('#result-dialog')).toBeVisible();
+    await cardPage.screenshot({ path: 'artifacts/point-card-final-result.png' });
+    await cardPage.locator('#result-home').click();
+
+    await cardPage.getByRole('button', { name: '게임 설정', exact: true }).click();
+    await cardPage.locator('#difficulty-setting').selectOption('0');
+    await cardPage.getByRole('button', { name: '설정 완료' }).click();
+    // A fixed browser date selects a reproducible natural service ace. The
+    // normal engine still advances, collides, awards the point and emits it.
+    await cardPage.clock.setFixedTime(new Date('2026-10-11T00:00:00Z'));
+    await cardPage.getByRole('button', { name: '경기 시작', exact: true }).click();
+    const actualWin = await nextCard('won');
+    expect(actualWin.pose).toBe('1'); expect(actualWin.artReady).toBe('true');
+    await expect(cutscene.locator('[data-card-score]')).toBeVisible();
+    await cardPage.clock.runFor(250); await cardPage.waitForTimeout(220);
+    await cardPage.screenshot({ path: 'artifacts/point-card-won.png' });
+    await cardPage.getByRole('button', { name: '일시정지', exact: true }).click(); await cardPage.locator('#home-button').click();
+
+    // A separate controller renders the shipped overlay and original atlas art.
+    // This fixture never mutates the production game's state or event queue.
+    const fixtureArt = await cardPage.evaluate(async gameURL => {
+      const { PointCutscene } = await import(new URL('src/point-cutscene.js', gameURL).href);
+      const { ROSTER } = await import(new URL('src/roster.js', gameURL).href);
+      const manifest = await (await fetch(new URL('src/sprites.json', gameURL))).json(), images = {};
+      await Promise.all(ROSTER.map(async ({ id }) => { const image = new Image(); image.src = new URL(`assets/sprites/${id}.webp`, gameURL).href; await image.decode(); images[id] = image; }));
+      const root = document.querySelector('#point-cutscene').cloneNode(true); root.id = 'qa-point-cutscene'; document.querySelector('#arena-wrap').append(root);
+      const controller = new PointCutscene(root, { images, manifest });
+      const originalDraw = root.querySelector('canvas').getContext('2d').drawImage, draws = [];
+      root.querySelector('canvas').getContext('2d').drawImage = function(image, sx, sy, sw, sh, dx, dy, dw, dh) {
+        draws.push({ uniformScaleError: Math.abs((dw / sw) / (dh / sh) - 1), source: [sx, sy, sw, sh] });
+        return originalDraw.call(this, image, sx, sy, sw, sh, dx, dy, dw, dh);
+      };
+      const show = (id, outcome, options = {}) => {
+        const actor = { id, index: 0, team: 0, contactKind: 'spike' };
+        controller.show({ type: 'point', team: outcome === 'won' ? 0 : 1, score: [4, 3], reason: 'ground', scorer: actor, conceded: actor }, options); controller.advance(.35);
+      };
+      window.__volleyPointCardFixture = { root, controller, show };
+      const samples = [];
+      for (const character of ROSTER) for (const outcome of ['won', 'lost']) {
+        show(character.id, outcome);
+        const canvas = root.querySelector('canvas'), pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+        let opaquePixels = 0; for (let index = 3; index < pixels.length; index += 4) if (pixels[index] > 0) opaquePixels++;
+        samples.push({ id: character.id, outcome, pose: Number(root.dataset.pose), name: root.querySelector('[data-card-name]').textContent, artReady: root.dataset.artReady, opaquePixels, ...draws.at(-1) });
+      }
+      document.body.classList.add('playing'); document.querySelector('#lobby-dock').hidden = true; document.querySelector('#game-controls').hidden = false;
+      return samples;
+    }, gameURL);
+    expect(fixtureArt).toHaveLength(EXPECTED_ROSTER.length * 2);
+    for (const sample of fixtureArt) {
+      expect(sample.name).toBe(EXPECTED_ROSTER.find(character => character.id === sample.id).name);
+      expect(sample.artReady).toBe('true'); expect(sample.opaquePixels).toBeGreaterThan(1000);
+      expect(sample.uniformScaleError).toBeLessThan(1e-10); expect(sample.pose).toBe(sample.outcome === 'won' ? 1 : 2);
+    }
+    const trainingScoreHidden = await cardPage.evaluate(() => {
+      const fixture = window.__volleyPointCardFixture; fixture.show('nova', 'won', { training: true });
+      return fixture.root.querySelector('[data-card-score]').hidden && fixture.root.querySelector('[data-card-eyebrow]').textContent === 'PRACTICE RALLY';
+    });
+    expect(trainingScoreHidden).toBe(true);
+    const layouts = [];
+    for (const [width, height] of [[393, 852], [320, 568], [844, 390]]) {
+      await cardPage.setViewportSize({ width, height });
+      for (const outcome of ['won', 'lost']) {
+        await cardPage.evaluate(outcome => window.__volleyPointCardFixture.show('tempest', outcome), outcome);
+        await cardPage.clock.runFor(100); await cardPage.waitForTimeout(220);
+        const layout = await cardPage.evaluate(() => {
+          const root = window.__volleyPointCardFixture.root, rect = root.getBoundingClientRect(), arena = document.querySelector('#arena-wrap').getBoundingClientRect();
+          const card = root.querySelector('.point-card')?.getBoundingClientRect() || rect, controls = document.querySelector('#game-controls').getBoundingClientRect();
+          const art = root.querySelector('.point-card-art').getBoundingClientRect(), canvas = root.querySelector('canvas').getBoundingClientRect();
+          return { width: innerWidth, height: innerHeight, outcome: root.dataset.outcome, documentWidth: document.documentElement.scrollWidth, card: card.toJSON(), arena: arena.toJSON(), controls: controls.toJSON(), art: art.toJSON(), canvas: canvas.toJSON(), pointerEvents: getComputedStyle(root).pointerEvents };
+        });
+        expect(layout.documentWidth).toBeLessThanOrEqual(width);
+        expect(layout.card.left).toBeGreaterThanOrEqual(layout.arena.left - 1); expect(layout.card.right).toBeLessThanOrEqual(layout.arena.right + 1);
+        expect(layout.card.top).toBeGreaterThanOrEqual(layout.arena.top - 1); expect(layout.card.bottom).toBeLessThanOrEqual(layout.arena.bottom + 1);
+        expect(layout.canvas.left).toBeGreaterThanOrEqual(layout.art.left - 1); expect(layout.canvas.right).toBeLessThanOrEqual(layout.art.right + 1);
+        expect(layout.canvas.top).toBeGreaterThanOrEqual(layout.art.top - 1); expect(layout.canvas.bottom).toBeLessThanOrEqual(layout.art.bottom + 1);
+        expect(layout.pointerEvents).toBe('none'); layouts.push(layout);
+        await cardPage.screenshot({ path: `artifacts/point-card-${outcome}-${width}x${height}.png` });
+      }
+    }
+    await cardPage.emulateMedia({ reducedMotion: 'reduce' });
+    const reducedMotion = await cardPage.evaluate(() => {
+      window.__volleyPointCardFixture.show('nova', 'won');
+      const root = window.__volleyPointCardFixture.root;
+      return [...root.querySelectorAll('*'), root].every(element => getComputedStyle(element).animationName === 'none' && getComputedStyle(element).transitionDuration.split(',').every(duration => parseFloat(duration) === 0));
+    });
+    expect(reducedMotion).toBe(true); expect(errors).toEqual([]); expect(responses).toEqual([]);
+    const report = { actualLoss, actualWin, terminal, pauseFreezesCard: true, terminalPauseResumes: true, restartClearsCard: true, homeClearsCard: true, resultFollowsFinalCard: true, fixtureArt, trainingScoreHidden, layouts, reducedMotion, errors, responses };
+    await writeFile('artifacts/point-card-qa-results.json', JSON.stringify(report, null, 2)); console.log(JSON.stringify(report));
+  } finally { await cardContext.close(); await browser.close(); }
   process.exit(0);
 }
 if (process.argv.includes('--motions')) {
@@ -416,7 +571,7 @@ if (process.argv.includes('--offline')) {
   if (!await page.evaluate(() => caches.has('other-game-cache'))) throw new Error('Other game cache was removed');
   await context.setOffline(true); await page.reload(); await page.waitForSelector('body[data-ready="true"]');
   await page.setViewportSize({ width: 393, height: 852 });
-  const cacheSheets = await page.evaluate(async () => (await (await caches.open('slay-beach-volley-v9')).keys()).filter(request => /\/assets\/animation\/.*\.webp$/.test(request.url)).length);
+  const cacheSheets = await page.evaluate(async version => (await (await caches.open(version)).keys()).filter(request => /\/assets\/animation\/.*\.webp$/.test(request.url)).length, currentCache);
   expect(cacheSheets).toBe(EXPECTED_ROSTER.length * 4);
   const offlineSelections = [];
   for (const character of EXPECTED_ROSTER) {

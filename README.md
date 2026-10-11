@@ -2,7 +2,7 @@
 
 모래 위에서, 한 방 더. 모바일 세로 화면에 맞춘 **2대2 캐주얼 비치발리볼** 게임입니다.
 
-**[바로 플레이하기](https://rockyhong-a11y.github.io/slay-beach-volley/?v=8)**
+**[바로 플레이하기](https://rockyhong-a11y.github.io/slay-beach-volley/?v=10)**
 
 ![Desktop lobby](artifacts/desktop-lobby.png)
 
@@ -13,6 +13,8 @@
 블로킹은 네트 바로 앞에서 공의 좌우 위치와 손 높이를 정확하게 맞춰야 성공합니다. 네트에서 떨어져 있거나 옆으로 빗나가면 실패합니다. 높아진 네트에 맞춰 점프와 공의 궤적을 조정했습니다.
 
 혼자 플레이하며, 동료와 상대 선수들은 AI가 조작합니다.
+
+득점·실점 때 원본 SLAY의 카드 컷신을 참고한 짧은 선수 카드가 등장합니다. 실제 득점 선수는 공격 컷, 실점 선수는 피격 컷으로 표시하며 이름·득점 방식·점수를 함께 보여줍니다. 10명 모두 원본 전신 이미지를 균일한 비율로 사용합니다. 1.48초 연출은 기존 랠리 대기시간 안에서 끝나고, 마지막 점수에서는 카드가 끝난 뒤 결과창이 열립니다. 일시정지·앱 전환 때 카드 시간도 멈춥니다.
 
 | 동작 | 모바일 | 키보드 |
 | --- | --- | --- |
@@ -70,6 +72,8 @@ npm run preview  # 완성된 dist/ 실행
 
 브라우저 검증에는 Playwright를 사용합니다. 기본적으로 macOS에 설치된 Chrome을 이용합니다. 다른 환경에서는 `npx playwright install chromium` 후 `npm run test:browser`를 실행하세요. `PLAYWRIGHT_CHROME`으로 브라우저 경로, `GAME_URL`로 검증할 게임 주소를 지정할 수 있습니다. `npm run test:browser -- --motions`는 10명의 실제 전신 프레임 렌더링, 9,600개 방향별 타임라인 샘플과 키 조작 방향을 검증합니다.
 
+`npm run test:browser -- --point-cards`는 실제 경기 득점·실점, 마지막 점수와 결과창 순서, 일시정지·재시작, 10명의 원본 카드 이미지와 작은 세로·가로 화면을 검증합니다.
+
 GitHub Actions는 main 브랜치의 테스트와 빌드를 수행한 뒤 `dist/`를 GitHub Pages에 배포합니다. 앱 내부의 자산 주소가 상대 경로라서 저장소 하위 경로에서도 작동합니다.
 
 ## 참고와 출처
@@ -78,6 +82,7 @@ GitHub Actions는 main 브랜치의 테스트와 빌드를 수행한 뒤 `dist/`
 - 타격 표현 참고: [배구의 왕 영상](https://youtu.be/hienypKo6hY). 점프 공격과 터치 조작의 방향을 참고했습니다.
 - 영상은 제공된 페이지의 제목·설명·공개 미리보기로 확인했습니다. 원본 영상 전체를 재생하거나 효과음을 직접 청취한 검증은 하지 못했습니다.
 - 캐릭터: [rockyhong-a11y/slay](https://github.com/rockyhong-a11y/slay), 소스 확인 커밋 `7a1bfbe261862f7c6a44981faf6ae9fb63eddb8c`, MIT.
+- 득점 카드 컷신 참고: 원본의 [TechniqueScene](https://github.com/rockyhong-a11y/slay/blob/main/src/CombatPresentation.jsx)과 [컷신 스타일](https://github.com/rockyhong-a11y/slay/blob/main/src/combat-presentation.css). 배경 음영, 강조된 일러스트, 이름·결과 문구, 짧은 등장·퇴장 흐름을 비치발리볼 선수 카드로 구성했습니다.
 - UI 아이콘: [Phosphor Icons](https://github.com/phosphor-icons/core), MIT.
 - 글꼴: Outfit, Do Hyeon. 자체 호스팅, SIL Open Font License.
 

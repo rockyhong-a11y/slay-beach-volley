@@ -18,7 +18,7 @@ export function createMatch({ character = 'nova', partner = 'seraph', opponents,
   const homes = [{ x: 335, y: 975 }, { x: 685, y: 790 }, { x: 685, y: 225 }, { x: 315, y: 410 }];
   return {
     phase: 'ready', phaseTimer: 1.5, time: 0, score: [0, 0], targetScore, difficulty, autoplay, training,
-    remaining: 60, seed: seed >>> 0, serving: 0, possession: 0, touches: 0, lastActor: -1, receiver: 0,
+    remaining: 60, seed: seed >>> 0, serving: 0, possession: 0, touches: 0, lastActor: -1, receiver: 0, lastContacts: [null, null],
     actors: ids.map((id, index) => ({ id, team: index < 2 ? 0 : 1, index, ...homes[index], home: { ...homes[index] }, z: 0, vz: 0, hang: 0, jumpKind: null, moving: 0, motionX: 0, motionY: 0, facing: index < 2 ? 'up' : 'down', action: 'idle', actionAt: 0, contactKind: null, contactAt: -10, landAt: -10, pose: 0, poseTime: 0, cooldown: 0, miss: false })),
     ball: { x: 335, y: 975, z: 170, vx: 0, vy: 0, vz: 0, gravity: WORLD.gravity, spin: 0, hot: 0 },
     events: [], rally: 0, freeze: 0, charge: 0, charging: false, swingBuffer: 0, blockBuffer: 0,
@@ -138,8 +138,26 @@ function serve(state) {
   server.poseTime = 0.45;
   server.action = server.contactKind = 'serve';
   server.actionAt = server.contactAt = state.time;
+  state.lastContacts = [null, null];
+  state.lastContacts[server.team] = contactSnapshot(server);
   state.events.push({ type: 'hit', kind: 'serve', actor: index, x: server.x, y: server.y, z: HAND_HEIGHT.attack, vx: state.ball.vx, vy: state.ball.vy, vz: state.ball.vz });
   updateHandler(state);
+}
+
+function contactSnapshot(actor) {
+  return { id: actor.id, index: actor.index, team: actor.team, contactKind: actor.contactKind };
+}
+
+function pointActor(state, team, { conceded = false } = {}) {
+  const last = state.actors[state.lastActor];
+  if (last?.team === team) return contactSnapshot(last);
+  if (state.lastContacts[team]) return { ...state.lastContacts[team] };
+  const candidates = state.actors.filter(actor => actor.team === team);
+  const handler = state.actors[state.handler];
+  const actor = !conceded && handler?.team === team ? handler
+    : candidates.reduce((nearest, candidate) => distance(candidate, state.ball) < distance(nearest, state.ball) ? candidate : nearest);
+  // An untouched serve has no contributing contact on the receiving side.
+  return { ...contactSnapshot(actor), contactKind: null };
 }
 
 export function awardPoint(state, team, reason = 'ground') {
@@ -147,8 +165,8 @@ export function awardPoint(state, team, reason = 'ground') {
   if (!state.training) state.score[team]++;
   if (team === 0) state.stats.points++;
   state.stats.longestRally = Math.max(state.stats.longestRally, state.rally);
-  state.lastPoint = { team, reason };
-  state.events.push({ type: 'point', team, reason, x: state.ball.x, y: state.ball.y, z: state.ball.z });
+  state.lastPoint = { team, reason, scorer: pointActor(state, team), conceded: pointActor(state, 1 - team, { conceded: true }), score: [...state.score], at: state.time, rally: state.rally };
+  state.events.push({ type: 'point', ...state.lastPoint, x: state.ball.x, y: state.ball.y, z: state.ball.z });
   state.phase = 'point';
   state.phaseTimer = 1.65;
   state.serving = team;
@@ -265,6 +283,7 @@ function touch(state, actor, { spike = false, manual = false, block = false } = 
   }
   actor.action = actor.contactKind = kind;
   actor.actionAt = actor.contactAt = state.time;
+  state.lastContacts[actor.team] = contactSnapshot(actor);
   state.events.push({ type: 'hit', kind, perfect, manual, actor: actor.index, x: ball.x, y: ball.y, z: ball.z, vx: ball.vx, vy: ball.vy, vz: ball.vz, rally: state.rally });
   return true;
 }

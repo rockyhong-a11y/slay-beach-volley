@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { createMatch, step, requestBlock, releaseSpike, beginCharge, predictLanding, drainEvents, playerCue, WORLD, HAND_HEIGHT } from '../src/engine.js';
+import { createMatch, step, requestBlock, releaseSpike, beginCharge, predictLanding, drainEvents, playerCue, awardPoint, WORLD, HAND_HEIGHT } from '../src/engine.js';
 import { ROSTER, normalizeSelection } from '../src/roster.js';
 
 const frame = 1 / 120;
@@ -193,6 +193,140 @@ test('a low ball crossing the net awards the point to the other team once', () =
 test('an out ball is charged to its last hitter, regardless of the landing half', () => {
   const state = rallyState(); state.lastActor = 2; Object.assign(state.ball, { x: 1100, y: 950, z: 1, vy: 0, vz: -200 });
   step(state, frame); assert.deepEqual(state.score, [1, 0]); assert.equal(state.lastPoint.reason, 'out');
+});
+
+function receiveForPoint(state, index) {
+  state.actors.forEach(actor => { actor.cooldown = 10; });
+  const actor = state.actors[index];
+  Object.assign(actor, { cooldown: 0, z: 0, vz: 0, hang: 0 });
+  state.possession = actor.team; state.handler = index; state.touches = 0;
+  Object.assign(state.ball, { x: actor.x, y: actor.y, z: 160, vx: 0, vy: 0, vz: -100 });
+  step(state, frame);
+  assert.equal(drainEvents(state).find(event => event.type === 'hit')?.actor, index, 'the fixture needs an actual contributing contact');
+}
+
+test('ground, net and out point cards follow the actual contributors on either team', () => {
+  for (const reason of ['ground', 'net', 'out']) for (const team of [0, 1]) {
+    const state = createMatch({ character: 'tempest', partner: 'onyx', opponents: ['lynx', 'viper'], seed: 42 });
+    state.phase = 'rally';
+    const winnerIndex = team === 0 ? 1 : 3;
+    const loserIndex = team === 0 ? 3 : 1;
+    // Both sides really touch this rally; the point must credit the partners,
+    // rather than always choosing player 0 or rival 2.
+    receiveForPoint(state, reason === 'ground' ? loserIndex : winnerIndex);
+    receiveForPoint(state, reason === 'ground' ? winnerIndex : loserIndex);
+    state.actors.forEach(actor => { actor.cooldown = 10; });
+    if (reason === 'net') Object.assign(state.ball, { x: 500, y: team === 0 ? 595 : 605, z: 100, vx: 0, vy: team === 0 ? 1800 : -1800, vz: 0 });
+    else Object.assign(state.ball, { x: reason === 'out' ? 1100 : 500, y: team === 0 ? 200 : 950, z: 1, vx: 0, vy: 0, vz: -200 });
+    step(state, frame);
+    const points = drainEvents(state).filter(event => event.type === 'point');
+    assert.equal(points.length, 1, `${reason}, team ${team}`);
+    const point = points[0];
+    assert.deepEqual(point.scorer, { id: state.actors[winnerIndex].id, index: winnerIndex, team, contactKind: 'receive' });
+    assert.deepEqual(point.conceded, { id: state.actors[loserIndex].id, index: loserIndex, team: 1 - team, contactKind: 'receive' });
+    assert.equal(point.team, team); assert.equal(point.reason, reason);
+    assert.deepEqual(point.score, team === 0 ? [1, 0] : [0, 1]);
+    assert.equal(point.at, state.time); assert.equal(point.rally, 2);
+    assert.equal(state.phaseTimer, 1.65);
+    assert.deepEqual(state.lastPoint, { team, reason, scorer: point.scorer, conceded: point.conceded, score: point.score, at: point.at, rally: point.rally });
+  }
+});
+
+test('spike and block contacts retain their action in the scored point snapshot', () => {
+  for (const kind of ['spike', 'block']) {
+    const state = rallyState();
+    if (kind === 'block') {
+      state.touches = 0; state.lastActor = 2;
+      Object.assign(state.actors[0], { y: 650, z: 175 });
+      Object.assign(state.ball, { y: 645, z: 505 });
+      requestBlock(state);
+    } else releaseSpike(state);
+    step(state, frame);
+    assert.equal(drainEvents(state).find(event => event.type === 'hit' && event.manual)?.kind, kind);
+    state.freeze = 0; state.actors.forEach(actor => { actor.cooldown = 10; });
+    Object.assign(state.ball, { x: 500, y: 200, z: 1, vx: 0, vy: 0, vz: -200 });
+    step(state, frame);
+    assert.equal(state.lastPoint.scorer.index, 0); assert.equal(state.lastPoint.scorer.contactKind, kind);
+  }
+});
+
+test('untouched serves select a receiving defender without inventing a contact', () => {
+  for (const serving of [0, 1]) {
+    const state = createMatch({ seed: 42 }); state.phase = 'serve'; state.phaseTimer = 0; state.serving = serving;
+    state.actors.forEach(actor => { actor.cooldown = 10; });
+    step(state, frame); drainEvents(state);
+    const defender = state.actors[serving === 0 ? 3 : 1];
+    Object.assign(state.ball, { x: defender.x, y: defender.y, z: 1, vx: 0, vy: 0, vz: -200 });
+    step(state, frame);
+    assert.equal(state.lastPoint.team, serving);
+    assert.equal(state.lastPoint.scorer.index, serving === 0 ? 0 : 2);
+    assert.equal(state.lastPoint.scorer.contactKind, 'serve');
+    assert.equal(state.lastPoint.conceded.index, defender.index);
+    assert.equal(state.lastPoint.conceded.contactKind, null);
+    assert.equal(state.lastPoint.conceded.team, 1 - serving);
+  }
+});
+
+test('a new serve discards the preceding rally contacts when the winner switches', () => {
+  const state = createMatch({ seed: 42 }); state.phase = 'rally';
+  receiveForPoint(state, 1); receiveForPoint(state, 3);
+  awardPoint(state, 1, 'ground'); drainEvents(state);
+  const previousPoint = structuredClone(state.lastPoint);
+  state.phase = 'serve'; state.phaseTimer = 0;
+  state.actors.forEach(actor => { actor.cooldown = 10; });
+  step(state, frame); drainEvents(state);
+  assert.equal(state.lastContacts[0], null);
+  assert.deepEqual(state.lastContacts[1], { id: state.actors[2].id, index: 2, team: 1, contactKind: 'serve' });
+  const receiver = state.handler;
+  Object.assign(state.ball, { x: 500, y: 595, z: 100, vx: 0, vy: 1800, vz: 0 });
+  step(state, frame);
+  assert.equal(state.lastPoint.team, 0);
+  assert.equal(state.lastPoint.scorer.index, receiver);
+  assert.equal(state.lastPoint.scorer.contactKind, null, 'the previous rally’s partner must not receive serve-fault credit');
+  assert.equal(state.lastPoint.conceded.index, 2);
+  assert.equal(state.lastPoint.conceded.contactKind, 'serve');
+  assert.deepEqual(state.lastPoint.score, [1, 1]);
+  assert.equal(previousPoint.scorer.index, 3);
+});
+
+test('final point emits its card snapshot once before the single finish event', () => {
+  for (const winner of [0, 1]) {
+    const state = createMatch({ seed: 42, targetScore: 1 }); state.phase = 'rally';
+    receiveForPoint(state, winner === 0 ? 1 : 3); receiveForPoint(state, winner === 0 ? 3 : 1);
+    state.actors.forEach(actor => { actor.cooldown = 10; });
+    Object.assign(state.ball, { x: 1100, y: 950, z: 1, vx: 0, vy: 0, vz: -200 });
+    step(state, frame);
+    const events = drainEvents(state);
+    assert.deepEqual(events.map(event => event.type), ['point', 'finish']);
+    assert.deepEqual(events[0].score, winner === 0 ? [1, 0] : [0, 1]);
+    assert.equal(events[0].scorer.team, winner); assert.equal(events[0].conceded.team, 1 - winner);
+    assert.equal(events[1].winner, winner); assert.equal(state.phase, 'finished');
+    awardPoint(state, winner, 'out'); for (let index = 0; index < 240; index++) step(state, frame);
+    assert.deepEqual(drainEvents(state), []); assert.deepEqual(state.score, events[0].score);
+  }
+});
+
+test('point card snapshots survive later actor, score and rally mutations', () => {
+  const state = createMatch({ seed: 42 }); state.phase = 'rally';
+  receiveForPoint(state, 1); receiveForPoint(state, 3); awardPoint(state, 0, 'ground');
+  const point = drainEvents(state).find(event => event.type === 'point');
+  const saved = structuredClone(point);
+  state.actors.forEach(actor => { actor.id = 'nova'; actor.contactKind = 'serve'; });
+  state.lastContacts[0].contactKind = 'block'; state.score[0] = 6; state.rally = 100;
+  assert.deepEqual(point, saved);
+});
+
+test('practice point cards preserve its score, timer and sixty-second cadence', () => {
+  const state = createMatch({ seed: 42, training: true }); state.phase = 'rally';
+  receiveForPoint(state, 1); receiveForPoint(state, 3);
+  const remaining = state.remaining;
+  awardPoint(state, 0, 'ground');
+  assert.deepEqual(state.lastPoint.score, [0, 0]); assert.deepEqual(state.score, [0, 0]);
+  assert.equal(state.phase, 'point'); assert.equal(state.phaseTimer, 1.65); assert.equal(state.remaining, remaining);
+  assert.equal(drainEvents(state).filter(event => event.type === 'finish').length, 0);
+  step(state, frame);
+  assert.ok(Math.abs(state.remaining - (remaining - frame)) < 1e-10);
+  assert.ok(Math.abs(state.phaseTimer - (1.65 - frame)) < 1e-10);
 });
 test('a player cannot touch the ball twice in a row', () => {
   const state = rallyState(); state.lastActor = 0; state.touches = 1; releaseSpike(state); step(state, frame);

@@ -27,3 +27,37 @@ body,body *{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none
 
 /* Keep charging feedback above the bottom action announcement. */
 .game-callout.show~.power-meter{bottom:150px}
+
+/* Original SLAY card art, presented during the existing point interlude. */
+.point-cutscene{position:absolute;inset:0;z-index:3;pointer-events:none;display:grid;place-items:center;container-type:size;perspective:900px;color:#fff2d0;background:radial-gradient(ellipse at center,#152c2ac2,#12292766 70%,#12292722);overflow:hidden}
+.point-rays{position:absolute;inset:-55%;background:repeating-conic-gradient(from 12deg,#f4d28a22 0deg 8deg,transparent 8deg 25deg);mask-image:radial-gradient(circle,#000 0%,transparent 65%);transform:rotate(-8deg)}
+.point-card-scene{width:min(72cqw,250px);height:min(79cqh,450px);display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:9px;text-align:center;position:relative;transform:translateX(0) scale(1);opacity:1;transition:transform .24s cubic-bezier(.18,.85,.3,1.15),opacity .2s}
+.point-cutscene[data-stage=enter] .point-card-scene{transform:translateX(-22px) rotateY(-16deg) scale(.88);opacity:0}
+.point-cutscene[data-stage=exit] .point-card-scene{transform:translateX(22px) scale(1.04);opacity:0}
+.point-heading{display:flex;flex-direction:column;gap:1px;position:relative;z-index:1;filter:drop-shadow(0 3px 0 #19302ce0)}
+.point-heading small{font-size:8px;font-weight:700;letter-spacing:3px;color:#f4dca4}
+.point-heading>strong{font-size:clamp(25px,9cqw,41px);line-height:1.05;font-weight:900;font-style:italic;letter-spacing:-1px;color:#fff2c4;text-shadow:2px 2px 0 #bf874b}
+.point-card{min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto;padding:8px 9px 10px;border:3px solid #ebc783;border-radius:12px;background:linear-gradient(150deg,#223e40,#12242b 60%,#293c40);box-shadow:0 0 0 2px #64533c,0 0 0 5px #f7dda93d,0 15px 25px #07191670,inset 0 0 0 1px #f8e1aa66;transform:rotate(-4deg);position:relative;overflow:hidden}
+.point-card:before{content:'';position:absolute;inset:6px;border:1px solid #e0bb7555;border-radius:6px;pointer-events:none}
+.point-card-corner{position:absolute;z-index:2;font-size:19px;line-height:1;color:#f9dfa8;text-shadow:0 1px 4px #040e10}
+.corner-top{left:9px;top:8px}.corner-bottom{right:9px;bottom:9px}
+.point-card-art{position:relative;min-height:0;display:grid;place-items:center}
+.point-card-art canvas{position:absolute;inset:0;min-width:0;min-height:0;width:100%;height:100%;object-fit:contain;z-index:1;filter:drop-shadow(0 4px 2px #020f1666)}
+.point-card-halo{position:absolute;inset:7% 0 0;background:radial-gradient(ellipse,var(--card-color) 0%,transparent 68%);opacity:.58}
+.point-card-halo:after{content:'';position:absolute;width:78%;aspect-ratio:1;top:8%;left:11%;border:1px solid #f7d8a94d;border-radius:50%;box-shadow:0 0 0 9px #f7d8a90a}
+.point-card-info{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:7px;border-top:1px solid #ddbd7755;text-shadow:0 2px 2px #07191d}
+.point-card-info>strong{font-size:clamp(16px,6cqw,25px);letter-spacing:2px;line-height:1;font-weight:800;color:#ffeac1}
+.point-card-info small{font-size:8px;color:#d7d9cc}.point-card-info>span{font-size:9px;color:#f4d498}
+.point-card-shine{position:absolute;inset:-50%;background:linear-gradient(112deg,transparent 42%,#fff2cc30 48%,transparent 53%);transform:translateX(-60%)}
+.point-cutscene[data-stage=hold] .point-card-shine{transform:translateX(60%);transition:transform .65s ease-out}
+.point-verdict{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:12px;padding:7px 11px;border:1px solid #f7dfa66b;border-radius:30px;background:#162f2cee;box-shadow:0 3px 9px #1225224a}
+.point-verdict>span{font-size:10px;font-weight:600;white-space:nowrap;color:#fff3d9}.point-verdict>div{display:flex;align-items:center;gap:8px;font-size:23px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums}.point-verdict>div>span{font-size:13px;opacity:.6}.point-verdict strong:last-child{color:#efa18b}
+.point-cutscene[data-outcome=lost]{background:radial-gradient(ellipse at center,#31242acc,#18272980 75%,#12292733)}
+.point-cutscene[data-outcome=lost] .point-rays{background:repeating-conic-gradient(from 12deg,#e7a09416 0deg 4deg,transparent 4deg 25deg)}
+.point-cutscene[data-outcome=lost] .point-heading>strong{font-size:clamp(22px,8cqw,35px);color:#ffd6c6;text-shadow:2px 2px 0 #914b4c}
+.point-cutscene[data-outcome=lost] .point-heading small{color:#ebafa3}
+.point-cutscene[data-outcome=lost] .point-card{border-color:#c38f83;background:linear-gradient(150deg,#3f303b,#1c222c 65%,#383341);box-shadow:0 0 0 2px #725652,0 0 0 5px #ebba9e20,0 15px 25px #100e1b70;transform:rotate(4deg)}
+.point-cutscene[data-outcome=lost] .point-card-corner,.point-cutscene[data-outcome=lost] .point-card-info>strong{color:#eec6b7}
+.point-cutscene[data-outcome=lost] .point-verdict{border-color:#bf85756b;background:#35282eee}
+@media(max-height:520px) and (orientation:landscape){.point-card-scene{width:min(50cqw,245px);height:82cqh;gap:5px}.point-heading>strong,.point-cutscene[data-outcome=lost] .point-heading>strong{font-size:25px}.point-heading small{font-size:6px}.point-card{padding:5px 9px 6px}.point-card-info{gap:2px;padding-top:4px}.point-card-info>strong{font-size:16px}.point-card-info small{font-size:7px}.point-card-info>span{font-size:8px}.point-verdict{padding:5px 9px}.point-verdict>span{font-size:8px}.point-verdict>div{font-size:18px}}
+@media(prefers-reduced-motion:reduce){.point-card-scene,.point-cutscene[data-stage=enter] .point-card-scene,.point-cutscene[data-stage=exit] .point-card-scene{transform:none;opacity:1}.point-card,.point-cutscene[data-outcome=lost] .point-card{transform:none}.point-card-shine{display:none}.point-rays{transform:none}}

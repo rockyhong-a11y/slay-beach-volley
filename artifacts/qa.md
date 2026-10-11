@@ -1,3 +1,13 @@
+# v10 point card cutscenes
+
+Verified on 2026-10-11. Score/concede cutscenes adapt the original SLAY `TechniqueScene` illustration, shaded backdrop, caption/result treatment and short entry/exit presentation. Every original character uses its intact attack or hurt figure, with equal horizontal and vertical scaling. Point events snapshot the real scoring and conceding actors and score; net/out faults identify the actual last hitter. The 1.48s presentation fits inside the unchanged 1.65s point phase. Practice retains its sixty-second timer and does not show fictitious match points.
+
+All 86 unit checks pass. Dedicated browser checks observe a real Nova service ace (1:0), Seraph concession (0:1) and final losing point (0:7) before the result dialog. They verify ordinary and terminal-point pause/resume, restart/home cleanup, twenty original win/loss artwork samples, practice score hiding, reduced motion and card/art containment at 393×852, 320×568 and 844×390. A small-screen intrinsic canvas sizing issue was corrected and the complete SD figures were visually rechecked. No page exceptions or failed requests occur.
+
+Full gameplay, six mobile layouts and desktop, manual movement, automatic jumping with a manual perfect spike, native 800ms touch holds and actual sixty-second practice pass. Offline play retains ten characters, forty action sheets and four sound recordings. The v9→v10 cache test exercises a real stale v9 response: first installation stays at one navigation, the explicit upgrade reloads once, existing game tabs and unrelated caches remain intact.
+
+Evidence: `point-card-qa-results.json`, `point-card-won.png`, `point-card-lost.png`, six card layout screenshots, `point-card-final-result.png`, and the full/offline/upgrade reports.
+
 # v9 action announcement placement
 
 The action title and skill caption now appear together at the bottom of the court, above the match-status pill. Their entry movement is limited to 8px. The visible announcement also raises the charging meter to prevent the two overlays from overlapping. Existing character animation, physics and controls continue unchanged.

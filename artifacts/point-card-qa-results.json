@@ -1,0 +1,693 @@
+{
+  "actualLoss": {
+    "stage": "enter",
+    "outcome": "lost",
+    "character": "seraph",
+    "reason": "ground",
+    "pose": "2",
+    "artReady": "true",
+    "title": "POINT LOST",
+    "name": "SERAPH",
+    "ours": 0,
+    "theirs": 1
+  },
+  "actualWin": {
+    "stage": "enter",
+    "outcome": "won",
+    "reason": "ground",
+    "pose": "1",
+    "artReady": "true",
+    "character": "nova",
+    "title": "POINT!",
+    "name": "NOVA",
+    "ours": 1,
+    "theirs": 0
+  },
+  "terminal": {
+    "stage": "enter",
+    "outcome": "lost",
+    "reason": "ground",
+    "pose": "2",
+    "artReady": "true",
+    "character": "seraph",
+    "title": "POINT LOST",
+    "name": "SERAPH",
+    "ours": 0,
+    "theirs": 7
+  },
+  "pauseFreezesCard": true,
+  "terminalPauseResumes": true,
+  "restartClearsCard": true,
+  "homeClearsCard": true,
+  "resultFollowsFinalCard": true,
+  "fixtureArt": [
+    {
+      "id": "nova",
+      "outcome": "won",
+      "pose": 1,
+      "name": "NOVA",
+      "artReady": "true",
+      "opaquePixels": 73178,
+      "uniformScaleError": 0,
+      "source": [
+        324.3652762119504,
+        75.08455467869223,
+        224.75310033821873,
+        309.8489289740699
+      ]
+    },
+    {
+      "id": "nova",
+      "outcome": "lost",
+      "pose": 2,
+      "name": "NOVA",
+      "artReady": "true",
+      "opaquePixels": 73937,
+      "uniformScaleError": 2.220446049250313e-16,
+      "source": [
+        631.2108229988727,
+        87.59864712514093,
+        218.74633596392337,
+        299.337091319053
+      ]
+    },
+    {
+      "id": "raven",
+      "outcome": "won",
+      "pose": 1,
+      "name": "RAVEN",
+      "artReady": "true",
+      "opaquePixels": 74844,
+      "uniformScaleError": 0,
+      "source": [
+        290.8275084554679,
+        54.060879368658405,
+        298.33596392333715,
+        361.90755355129653
+      ]
+    },
+    {
+      "id": "raven",
+      "outcome": "lost",
+      "pose": 2,
+      "name": "RAVEN",
+      "artReady": "true",
+      "opaquePixels": 76103,
+      "uniformScaleError": 0,
+      "source": [
+        610.1871476888389,
+        56.56369785794814,
+        269.3032694475761,
+        359.4047350620068
+      ]
+    },
+    {
+      "id": "valkyrie",
+      "outcome": "won",
+      "pose": 1,
+      "name": "VALKYRIE",
+      "artReady": "true",
+      "opaquePixels": 58048,
+      "uniformScaleError": 2.220446049250313e-16,
+      "source": [
+        325.86696730552427,
+        4.0045095828635855,
+        291.8286358511838,
+        437.49267192784674
+      ]
+    },
+    {
+      "id": "valkyrie",
+      "outcome": "lost",
+      "pose": 2,
+      "name": "VALKYRIE",
+      "artReady": "true",
+      "opaquePixels": 56696,
+      "uniformScaleError": 0,
+      "source": [
+        643.7249154453214,
+        19.02142051860203,
+        239.77001127395718,
+        422.9763246899662
+      ]
+    },
+    {
+      "id": "viper",
+      "outcome": "won",
+      "pose": 1,
+      "name": "VIPER",
+      "artReady": "true",
+      "opaquePixels": 63298,
+      "uniformScaleError": 0,
+      "source": [
+        296.8342728297633,
+        10.511837655016912,
+        293.8308906426156,
+        421.97519729425034
+      ]
+    },
+    {
+      "id": "viper",
+      "outcome": "lost",
+      "pose": 2,
+      "name": "VIPER",
+      "artReady": "true",
+      "opaquePixels": 62224,
+      "uniformScaleError": 2.220446049250313e-16,
+      "source": [
+        610.1871476888389,
+        17.519729425028185,
+        276.8117249154453,
+        413.96617812852315
+      ]
+    },
+    {
+      "id": "ember",
+      "outcome": "won",
+      "pose": 1,
+      "name": "EMBER",
+      "artReady": "true",
+      "opaquePixels": 73913,
+      "uniformScaleError": 0,
+      "source": [
+        282.81848928974074,
+        33.53776775648253,
+        311.85118376550173,
+        386.435174746336
+      ]
+    },
+    {
+      "id": "ember",
+      "outcome": "lost",
+      "pose": 2,
+      "name": "EMBER",
+      "artReady": "true",
+      "opaquePixels": 75165,
+      "uniformScaleError": 0,
+      "source": [
+        597.1724915445321,
+        31.034949267192786,
+        286.82299887260433,
+        389.9391206313416
+      ]
+    },
+    {
+      "id": "atlas",
+      "outcome": "won",
+      "pose": 1,
+      "name": "ATLAS",
+      "artReady": "true",
+      "opaquePixels": 55886,
+      "uniformScaleError": 2.220446049250313e-16,
+      "source": [
+        309.8489289740699,
+        21.524239007891772,
+        269.3032694475761,
+        407.45885005636984
+      ]
+    },
+    {
+      "id": "atlas",
+      "outcome": "lost",
+      "pose": 2,
+      "name": "ATLAS",
+      "artReady": "true",
+      "opaquePixels": 54743,
+      "uniformScaleError": 1.1102230246251565e-16,
+      "source": [
+        635.2153325817362,
+        23.025930101465615,
+        234.7643742953777,
+        405.957158962796
+      ]
+    },
+    {
+      "id": "seraph",
+      "outcome": "won",
+      "pose": 1,
+      "name": "SERAPH",
+      "artReady": "true",
+      "opaquePixels": 63269,
+      "uniformScaleError": 2.220446049250313e-16,
+      "source": [
+        290.8275084554679,
+        5.50620067643743,
+        295.83314543404737,
+        430.9853438556934
+      ]
+    },
+    {
+      "id": "seraph",
+      "outcome": "lost",
+      "pose": 2,
+      "name": "SERAPH",
+      "artReady": "true",
+      "opaquePixels": 57891,
+      "uniformScaleError": 1.1102230246251565e-16,
+      "source": [
+        610.6877113866968,
+        3.003382187147689,
+        271.3055242390079,
+        433.98872604284105
+      ]
+    },
+    {
+      "id": "lynx",
+      "outcome": "won",
+      "pose": 1,
+      "name": "LYNX",
+      "artReady": "true",
+      "opaquePixels": 65143,
+      "uniformScaleError": 0,
+      "source": [
+        318.859075535513,
+        34.03833145434048,
+        268.8027057497182,
+        392.94250281848934
+      ]
+    },
+    {
+      "id": "lynx",
+      "outcome": "lost",
+      "pose": 2,
+      "name": "LYNX",
+      "artReady": "true",
+      "opaquePixels": 64243,
+      "uniformScaleError": 2.220446049250313e-16,
+      "source": [
+        644.7260428410373,
+        40.5456595264938,
+        240.27057497181514,
+        387.93686583990984
+      ]
+    },
+    {
+      "id": "tempest",
+      "outcome": "won",
+      "pose": 1,
+      "name": "TEMPEST",
+      "artReady": "true",
+      "opaquePixels": 71322,
+      "uniformScaleError": 0,
+      "source": [
+        295.3325817361894,
+        43.048478015783544,
+        307.84667418263814,
+        388.93799323562575
+      ]
+    },
+    {
+      "id": "tempest",
+      "outcome": "lost",
+      "pose": 2,
+      "name": "TEMPEST",
+      "artReady": "true",
+      "opaquePixels": 67245,
+      "uniformScaleError": 0,
+      "source": [
+        608.685456595265,
+        49.55580608793687,
+        272.80721533258173,
+        381.9301014656145
+      ]
+    },
+    {
+      "id": "onyx",
+      "outcome": "won",
+      "pose": 1,
+      "name": "ONYX",
+      "artReady": "true",
+      "opaquePixels": 67873,
+      "uniformScaleError": 2.220446049250313e-16,
+      "source": [
+        295.3325817361894,
+        25.02818489289741,
+        272.80721533258173,
+        409.4611048478016
+      ]
+    },
+    {
+      "id": "onyx",
+      "outcome": "lost",
+      "pose": 2,
+      "name": "ONYX",
+      "artReady": "true",
+      "opaquePixels": 68820,
+      "uniformScaleError": 0,
+      "source": [
+        595.1702367531004,
+        45.55129650507328,
+        284.32018038331455,
+        389.9391206313416
+      ]
+    }
+  ],
+  "trainingScoreHidden": true,
+  "layouts": [
+    {
+      "width": 393,
+      "height": 852,
+      "outcome": "won",
+      "documentWidth": 393,
+      "card": {
+        "x": 59.66414260864258,
+        "y": 231.1262664794922,
+        "width": 273.67169189453125,
+        "height": 364.66937255859375,
+        "top": 231.1262664794922,
+        "right": 333.3358345031738,
+        "bottom": 595.7956390380859,
+        "left": 59.66414260864258
+      },
+      "arena": {
+        "x": 16,
+        "y": 87,
+        "width": 361,
+        "height": 647,
+        "top": 87,
+        "right": 377,
+        "bottom": 734,
+        "left": 16
+      },
+      "controls": {
+        "x": 16,
+        "y": 734,
+        "width": 361,
+        "height": 112,
+        "top": 734,
+        "right": 377,
+        "bottom": 846,
+        "left": 16
+      },
+      "art": {
+        "x": 72.40223693847656,
+        "y": 242.93655395507812,
+        "width": 244.04173278808594,
+        "height": 281.6469421386719,
+        "top": 242.93655395507812,
+        "right": 316.4439697265625,
+        "bottom": 524.58349609375,
+        "left": 72.40223693847656
+      },
+      "canvas": {
+        "x": 72.40223693847656,
+        "y": 242.93655395507812,
+        "width": 244.04173278808594,
+        "height": 281.6469421386719,
+        "top": 242.93655395507812,
+        "right": 316.4439697265625,
+        "bottom": 524.58349609375,
+        "left": 72.40223693847656
+      },
+      "pointerEvents": "none"
+    },
+    {
+      "width": 393,
+      "height": 852,
+      "outcome": "lost",
+      "documentWidth": 393,
+      "card": {
+        "x": 59.532257080078125,
+        "y": 227.34962463378906,
+        "width": 273.93548583984375,
+        "height": 368.44140625,
+        "top": 227.34962463378906,
+        "right": 333.4677429199219,
+        "bottom": 595.7910308837891,
+        "left": 59.532257080078125
+      },
+      "arena": {
+        "x": 16,
+        "y": 87,
+        "width": 361,
+        "height": 647,
+        "top": 87,
+        "right": 377,
+        "bottom": 734,
+        "left": 16
+      },
+      "controls": {
+        "x": 16,
+        "y": 734,
+        "width": 361,
+        "height": 112,
+        "top": 734,
+        "right": 377,
+        "bottom": 846,
+        "left": 16
+      },
+      "art": {
+        "x": 76.42413330078125,
+        "y": 239.159912109375,
+        "width": 244.30551147460938,
+        "height": 285.4189453125,
+        "top": 239.159912109375,
+        "right": 320.7296447753906,
+        "bottom": 524.578857421875,
+        "left": 76.42413330078125
+      },
+      "canvas": {
+        "x": 76.42413330078125,
+        "y": 239.159912109375,
+        "width": 244.30551147460938,
+        "height": 285.4189453125,
+        "top": 239.159912109375,
+        "right": 320.7296447753906,
+        "bottom": 524.578857421875,
+        "left": 76.42413330078125
+      },
+      "pointerEvents": "none"
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "outcome": "won",
+      "documentWidth": 320,
+      "card": {
+        "x": 47.8073616027832,
+        "y": 166.51983642578125,
+        "width": 224.36964416503906,
+        "height": 203.7259521484375,
+        "top": 166.51983642578125,
+        "right": 272.17700576782227,
+        "bottom": 370.24578857421875,
+        "left": 47.8073616027832
+      },
+      "arena": {
+        "x": 12,
+        "y": 87,
+        "width": 296,
+        "height": 363,
+        "top": 87,
+        "right": 308,
+        "bottom": 450,
+        "left": 12
+      },
+      "controls": {
+        "x": 12,
+        "y": 450,
+        "width": 296,
+        "height": 104,
+        "top": 450,
+        "right": 308,
+        "bottom": 554,
+        "left": 12
+      },
+      "art": {
+        "x": 60.545448303222656,
+        "y": 178.3301239013672,
+        "width": 195.01217651367188,
+        "height": 124.60029602050781,
+        "top": 178.3301239013672,
+        "right": 255.55762481689453,
+        "bottom": 302.930419921875,
+        "left": 60.545448303222656
+      },
+      "canvas": {
+        "x": 60.545448303222656,
+        "y": 178.3301239013672,
+        "width": 195.01217651367188,
+        "height": 124.60029602050781,
+        "top": 178.3301239013672,
+        "right": 255.55762481689453,
+        "bottom": 302.930419921875,
+        "left": 60.545448303222656
+      },
+      "pointerEvents": "none"
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "outcome": "lost",
+      "documentWidth": 320,
+      "card": {
+        "x": 47.70000076293945,
+        "y": 163.44546508789062,
+        "width": 224.58436584472656,
+        "height": 206.79656982421875,
+        "top": 163.44546508789062,
+        "right": 272.284366607666,
+        "bottom": 370.2420349121094,
+        "left": 47.70000076293945
+      },
+      "arena": {
+        "x": 12,
+        "y": 87,
+        "width": 296,
+        "height": 363,
+        "top": 87,
+        "right": 308,
+        "bottom": 450,
+        "left": 12
+      },
+      "controls": {
+        "x": 12,
+        "y": 450,
+        "width": 296,
+        "height": 104,
+        "top": 450,
+        "right": 308,
+        "bottom": 554,
+        "left": 12
+      },
+      "art": {
+        "x": 64.31938171386719,
+        "y": 175.25575256347656,
+        "width": 195.2268829345703,
+        "height": 127.67091369628906,
+        "top": 175.25575256347656,
+        "right": 259.5462646484375,
+        "bottom": 302.9266662597656,
+        "left": 64.31938171386719
+      },
+      "canvas": {
+        "x": 64.31938171386719,
+        "y": 175.25575256347656,
+        "width": 195.2268829345703,
+        "height": 127.67091369628906,
+        "top": 175.25575256347656,
+        "right": 259.5462646484375,
+        "bottom": 302.9266662597656,
+        "left": 64.31938171386719
+      },
+      "pointerEvents": "none"
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "outcome": "won",
+      "documentWidth": 844,
+      "card": {
+        "x": 213.75738525390625,
+        "y": 144.18141174316406,
+        "width": 256.4852294921875,
+        "height": 189.87156677246094,
+        "top": 144.18141174316406,
+        "right": 470.24261474609375,
+        "bottom": 334.052978515625,
+        "left": 213.75738525390625
+      },
+      "arena": {
+        "x": 82,
+        "y": 84,
+        "width": 520,
+        "height": 305,
+        "top": 84,
+        "right": 602,
+        "bottom": 389,
+        "left": 82
+      },
+      "controls": {
+        "x": 617,
+        "y": 84,
+        "width": 145,
+        "height": 170,
+        "top": 84,
+        "right": 762,
+        "bottom": 254,
+        "left": 617
+      },
+      "art": {
+        "x": 226.2862091064453,
+        "y": 152.99900817871094,
+        "width": 228.28855895996094,
+        "height": 127.34596252441406,
+        "top": 152.99900817871094,
+        "right": 454.57476806640625,
+        "bottom": 280.344970703125,
+        "left": 226.2862091064453
+      },
+      "canvas": {
+        "x": 226.2862091064453,
+        "y": 152.99900817871094,
+        "width": 228.28855895996094,
+        "height": 127.34596252441406,
+        "top": 152.99900817871094,
+        "right": 454.57476806640625,
+        "bottom": 280.344970703125,
+        "left": 226.2862091064453
+      },
+      "pointerEvents": "none"
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "outcome": "lost",
+      "documentWidth": 844,
+      "card": {
+        "x": 213.75738525390625,
+        "y": 144.18141174316406,
+        "width": 256.4852294921875,
+        "height": 189.87156677246094,
+        "top": 144.18141174316406,
+        "right": 470.24261474609375,
+        "bottom": 334.052978515625,
+        "left": 213.75738525390625
+      },
+      "arena": {
+        "x": 82,
+        "y": 84,
+        "width": 520,
+        "height": 305,
+        "top": 84,
+        "right": 602,
+        "bottom": 389,
+        "left": 82
+      },
+      "controls": {
+        "x": 617,
+        "y": 84,
+        "width": 145,
+        "height": 170,
+        "top": 84,
+        "right": 762,
+        "bottom": 254,
+        "left": 617
+      },
+      "art": {
+        "x": 229.4252471923828,
+        "y": 152.99900817871094,
+        "width": 228.28855895996094,
+        "height": 127.34596252441406,
+        "top": 152.99900817871094,
+        "right": 457.71380615234375,
+        "bottom": 280.344970703125,
+        "left": 229.4252471923828
+      },
+      "canvas": {
+        "x": 229.4252471923828,
+        "y": 152.99900817871094,
+        "width": 228.28855895996094,
+        "height": 127.34596252441406,
+        "top": 152.99900817871094,
+        "right": 457.71380615234375,
+        "bottom": 280.344970703125,
+        "left": 229.4252471923828
+      },
+      "pointerEvents": "none"
+    }
+  ],
+  "reducedMotion": true,
+  "errors": [],
+  "responses": []
+}

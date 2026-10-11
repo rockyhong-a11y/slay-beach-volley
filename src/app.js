@@ -3,6 +3,7 @@ import { createMatch, step, beginCharge, releaseSpike, requestBlock, playerCue, 
 import { Renderer, drawPortrait, loadCourtImages } from './render.js';
 import { GameAudio } from './audio.js';
 import { loadAnimationAssets, loadAnimationManifest } from './sprite-animation.js';
+import { PointCutscene } from './point-cutscene.js';
 
 const $ = selector => document.querySelector(selector);
 // Native editing stays available; holding any other part of the game has no callout.
@@ -28,7 +29,8 @@ const images = {}, animationImages = {};
 let animationManifest = {}, assetsReady = false, assetsLoading = false, assetRequest = 0, assetPreparation, assetController, activeAssetKey = '';
 let activeAssetIds = new Set();
 let manifest = {}, renderer, game, mode = 'quick', courtIndex = 0, tourStage = 0;
-let playing = false, paused = false, starting = false, finishTimer = null, toastTimer = null, calloutUntil = 0;
+let playing = false, paused = false, starting = false, finishDelay = null, toastTimer = null, calloutUntil = 0;
+let pointCutscene;
 let accumulator = 0, previousFrame = performance.now(), hudAt = 0;
 const input = { x: 0, y: 0 }, keys = new Set();
 let stickPointer = null, spikePointer = null, stickX = 0, stickY = 0;
@@ -198,7 +200,7 @@ async function startMatch() {
   try {
     if (!renderer) throw new Error('not ready');
     await waitForCurrentAssets();
-    clearTimeout(finishTimer);
+    finishDelay = null; pointCutscene.clear();
     dialogs.forEach(dialog => { if (dialog.open) dialog.close(); });
     clearControls(); playing = true; paused = false; game = makeGame(); game.phaseTimer = 2.5;
     document.body.classList.add('playing'); $('#lobby-dock').hidden = true; $('#game-controls').hidden = false; $('#pause-button').hidden = false;
@@ -211,14 +213,14 @@ async function startMatch() {
   finally { starting = false; updateStartButtons(); }
 }
 function goHome() {
-  clearTimeout(finishTimer); playing = false; paused = false; clearControls();
+  finishDelay = null; pointCutscene.clear(); playing = false; paused = false; clearControls();
   dialogs.forEach(dialog => { if (dialog.open) dialog.close(); });
   document.body.classList.remove('playing'); $('#lobby-dock').hidden = false; $('#game-controls').hidden = true; $('#pause-button').hidden = true;
   $('#previous-court').disabled = $('#next-court').disabled = false; $('#game-callout').classList.remove('show'); $('#countdown').textContent = '';
   game = makeGame(true); renderer.resize(); updateSelection(); $('#mobile-start').focus({ preventScroll: true });
 }
 function finish() {
-  if (!playing || game.phase !== 'finished') return;
+  if (!playing || game.phase !== 'finished' || $('#result-dialog').open) return;
   paused = true; clearControls();
   const won = game.winner === 0;
   if (mode === 'training') {
@@ -252,9 +254,11 @@ function handleEvents(events) {
         if (saved.settings.haptics && navigator.vibrate) navigator.vibrate(event.perfect ? [18, 15, 25] : 20);
       } else if ((event.kind === 'set' || event.kind === 'receive') && event.actor === 1 && game.handler === 0) showCallout('YOUR TURN!', '점프는 자동 · 스파이크는 직접!', 1000);
     } else if (event.type === 'point') {
-      showCallout(event.team === 0 ? 'POINT!' : event.reason === 'net' ? 'NET!' : event.reason === 'out' ? 'OUT!' : 'NEXT RALLY', event.team === 0 ? '우리 팀 득점!' : event.reason === 'net' ? '공을 조금 더 높게!' : event.reason === 'out' ? '코트 밖으로 나갔어요' : '다음 공을 준비해요', 1150);
-      $('#announcer').textContent = `우리 팀 ${game.score[0]}점, 상대 팀 ${game.score[1]}점.`;
-    } else if (event.type === 'finish') { finishTimer = setTimeout(finish, 650); }
+      $('#game-callout').classList.remove('show'); calloutUntil = 0;
+      pointCutscene.show(event, { training: mode === 'training' });
+      const actor = event.team === 0 ? event.scorer : event.conceded;
+      $('#announcer').textContent = `${characterFor(actor.id).ko}, ${event.team === 0 ? '우리 팀 득점' : '실점'}. ${mode === 'training' ? '다음 랠리를 준비해요.' : `우리 팀 ${event.score[0]}점, 상대 팀 ${event.score[1]}점.`}`;
+    } else if (event.type === 'finish') { finishDelay = Math.max(.65, pointCutscene.remaining); }
   }
 }
 function updateHUD() {
@@ -293,6 +297,13 @@ function frame(now) {
       accumulator += elapsed;
       while (accumulator >= 1 / 120) { step(game, 1 / 120, input); accumulator -= 1 / 120; }
       handleEvents(drainEvents(game));
+      if (playing) {
+        pointCutscene.advance(elapsed);
+        if (finishDelay !== null) {
+          finishDelay -= elapsed;
+          if (finishDelay <= 1e-9 && !pointCutscene.active) { finishDelay = null; finish(); }
+        }
+      }
       if (!playing && game.phase === 'finished') game = makeGame(true);
     } else accumulator = 0;
     const playerPosition = renderer.draw(game, now / 1000);
@@ -347,7 +358,7 @@ $('#sound-toggle img').src = `./assets/icons/${audio.muted ? 'speaker-slash' : '
 $('#sound-toggle').setAttribute('aria-pressed', String(audio.muted)); $('#sound-toggle').setAttribute('aria-label', audio.muted ? '소리 켜기' : '소리 끄기');
 document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 for (const dialog of dialogs) dialog.addEventListener('close', () => {
-  clearControls(); if (playing && game?.phase !== 'finished' && !dialogs.some(other => other.open)) { paused = false; audio.resume().catch(() => {}); }
+  clearControls(); if (playing && (game?.phase !== 'finished' || finishDelay !== null) && !dialogs.some(other => other.open)) { paused = false; audio.resume().catch(() => {}); }
 });
 $('#pause-button').addEventListener('click', () => openDialog($('#pause-dialog')));
 $('#resume-button').addEventListener('click', () => $('#pause-dialog').close());
@@ -402,6 +413,7 @@ async function initialize() {
     const [response, courtImages, allAnimations] = await Promise.all([fetch(new URL('./sprites.json', import.meta.url)), loadCourtImages(), loadAnimationManifest()]);
     if (!response.ok) throw new Error('manifest');
     manifest = await response.json(); animationManifest = allAnimations;
+    pointCutscene = new PointCutscene($('#point-cutscene'), { images, manifest });
     renderer = new Renderer($('#game-canvas'), images, manifest, { reducedMotion: reducedMotion.matches, shake: saved.settings.shake, courtImages, animationImages, animationManifest });
     game = makeGame(true); setMode(mode); updateSelection();
     requestAnimationFrame(frame);
